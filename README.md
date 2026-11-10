@@ -1,185 +1,109 @@
 # Roshan Rozgar · روشن روزگار
 
-A local marketplace connecting households with skilled trade workers in Pakistan.
-Built for the COMSATS CUI AI Web Forge hackathon.
+A neighbourhood marketplace for skilled trades in Islamabad and Rawalpindi.
+Built with React, Vite, GSAP, Flask, SQLAlchemy, SQLite for local demos, and
+MySQL/TiDB for shared deployments.
 
-## Current scope
+## Hackathon flow
 
-This is the initial foundation: a responsive white-and-ember homepage, six trade
-categories, and sample worker browsing by city, service, and availability. Catalog
-data comes from the Flask API; loading, retry, and empty states are included.
-
-Worker onboarding, accounts, voice/AI features, messaging, price agreement, booking,
-availability updates, and reviews are **not implemented yet**. The homepage describes
-the planned flow and labels unavailable features. There is no payment integration.
-
-## Stack and structure
-
-React + Vite, plain CSS, Flask app factory and blueprints, Flask-SQLAlchemy,
-Flask-Migrate. No frontend UI framework or router is needed for this single page.
-
-| Path | Purpose |
+| Outcome | What to demonstrate |
 | --- | --- |
-| `backend/app/__init__.py` | App factory, extensions, blueprint registration, built frontend serving |
-| `backend/app/config.py` | Environment-based SQLite/TiDB, TLS, and Gemini configuration |
-| `backend/app/extensions.py` | Shared database and migration extensions |
-| `backend/app/main/` | Health and catalog API routes; fictional demo data |
-| `backend/app/models/` | Home for future database models |
-| `backend/wsgi.py` | Flask and Gunicorn entry point |
-| `backend/app/services/ai.py` | Server-side Gemini client, bounded timeouts, safe error messages |
-| `backend/app/commands.py` | Database and Gemini connection checks |
-| `frontend/src/app/` | Application entry/layout |
-| `frontend/src/pages/` | Page-level components |
-| `frontend/src/components/` | Reusable UI, including the supplied RippleButton |
-| `frontend/src/api/` | Shared fetch client |
-| `frontend/src/hooks/` | Catalog fetching and loading/error state |
-| `frontend/src/styles/` | Global and page styles |
+| Onboarding | Register as a worker by phone. Record a short introduction in Urdu, Roman Urdu or English. Gemini extracts the name, trade, neighbourhood and experience. Listen to or check the draft, correct any gaps, then publish. The guided path offers trade icons, tap choices and speech prompts. |
+| Discovery | Choose a city, neighbourhood and trade. Browse available workers in approximate distance order and open reviews. |
+| Communication | Request a worker. Both accounts can exchange text or playable voice notes. The worker sends a quote in PKR and the customer sees that exact price before accepting. |
+| Booking | Accept the quote. The worker becomes booked in the same database transaction and a second customer cannot confirm them. Completing or cancelling the booking releases the worker according to their availability setting. |
+| Trust | The customer can leave one review for a completed job. Its rating and note appear in the worker’s public reviews. A phone verification badge indicates SMS verification. |
 
-## Local setup (Windows PowerShell)
+Payments, government identity checks and native apps are outside the project
+scope. A local demo is supported for judging.
 
-Requires Python 3.11+ and Node.js 22.12+ (or a supported newer LTS).
-Run these commands from the repository root.
+## Run locally
 
-### Terminal 1 — backend
+Use Python 3.11+ and Node 22.12+. Run from the repository root.
 
 ```powershell
-cd backend
-python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt
-.\.venv\Scripts\python.exe -m flask --app wsgi:app run --debug --port 5000
-```
-
-### Terminal 2 — frontend
-
-```powershell
-cd frontend
-npm ci --include=dev
+python -m venv backend/.venv
+.\backend\.venv\Scripts\python.exe -m pip install -r backend/requirements.txt
+npm --prefix frontend ci --include=dev
 npm run dev
 ```
 
-Open the URL Vite prints (normally `http://localhost:5173`). Vite proxies `/api`
-to Flask on port 5000, so CORS setup is unnecessary. Keep both terminals running.
-On Linux/macOS, use `.venv/bin/python` instead of the Windows executable path.
+On Linux or macOS, use `backend/.venv/bin/python` for the install command.
+Open the URL printed by Vite, usually `http://localhost:5173`. The root script
+starts Flask on port 5000 and Vite proxies requests to it. Local SQLite creates
+the schema and seeds sample records on first run. Its database lives in
+`backend/instance/`.
 
-After the initial dependency setup, you can also start both processes from the
-repository root with `npm run dev`. This shortcut uses `backend/.venv` and your
-installed Vite dependency. Stop it with Ctrl+C; restart after backend edits.
+To run the compiled site and API together, run `npm run build` from the root
+and `python -m flask --app wsgi:app run` from `backend/` using the virtual
+environment. Flask serves the built frontend. The existing Dockerfile also
+builds both and runs Gunicorn on port 8000 by default.
 
-### Configuration and database
+## Verification, AI and shared database
 
-Copy `backend/.env.example` to `backend/.env` and fill in your own values. The file
-is ignored by Git and excluded from Docker images; never put secrets in `.env.example`
-or frontend `VITE_*` variables. Existing process environment variables take precedence
-over the file. An environment file is optional for the default local SQLite setup.
+Copy `backend/.env.example` to `backend/.env` for optional configuration.
 
-| Variable | Behavior |
+| Setting | Purpose |
 | --- | --- |
-| `APP_ENV` | `development`, `testing`, or `production`; production requires `SECRET_KEY` and `DB_HOST` and enables secure session cookies |
-| `SECRET_KEY` | Shared random session secret; optional while running the local catalog without authentication |
-| `DB_HOST` | Empty selects local SQLite; a value selects MySQL/TiDB through PyMySQL |
-| `DB_PORT` | MySQL/TiDB port, defaults to `4000` |
-| `DB_NAME` | Database name, e.g. `roshanRozgar`, without a trailing semicolon |
-| `DB_USER`, `DB_PASSWORD` | Database credentials; fill in the TiDB password before connecting |
-| `DB_SSL` | `1` enables certificate and hostname verification; TiDB Cloud requires it |
-| `DB_CA_PATH` | Optional CA file, resolved relative to `backend/`; e.g. `certs/isrgrootx1.pem`. Empty uses Certifi's public CA bundle |
-| `SEED_SAMPLE_DATA` | `1` exposes fictional in-memory workers on the homepage; `0` returns no workers. No rows are inserted on Docker startup |
-| `ADMIN_EMAIL`, `ADMIN_PASSWORD` | Reserved for future admin accounts; currently unused. Leave empty |
-| `GEMINI_API_KEY` | Optional Google Gemini key, used only on the backend |
-| `GEMINI_MODEL` | Defaults to `gemini-3.5-flash-lite`; override with a Gemini model available to your project |
+| `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_VERIFY_SERVICE_SID` | Enable real passwordless SMS sign-up and sign-in with a six-digit Twilio Verify service. All three are required for live SMS. |
+| `DEMO_VERIFICATION` | Local SQLite defaults to a clearly labelled, one-time demo code shown in the browser. Set to `0` to require SMS. Demo verification is unavailable on a shared database or in production. |
+| `GEMINI_API_KEY`, `GEMINI_MODEL` | Enable voice-to-profile extraction through the Google Gemini Developer API. The default model is `gemini-3.5-flash-lite`. Choose a model your Google project can use for audio input. |
+| `SEED_SAMPLE_DATA` | Enables fictional workers, completed jobs and reviews. Use `0` on a real-user deployment. |
+| `APP_ENV`, `SECRET_KEY` | Production requires `APP_ENV=production`, a shared random secret, and HTTPS. Local sessions use a generated secret in the instance folder if the setting is omitted. |
+| `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_SSL`, `DB_CA_PATH` | Point Flask at the existing MySQL/TiDB database. TiDB uses TLS; port 4000 is the default. Run `python -m flask --app wsgi:app init-marketplace` from `backend/` before starting the app with a shared database. |
 
-The old `DATABASE_URL`, `OPENAI_API_KEY`, and `OPENAI_MODEL` settings are no longer
-used. This project uses the `DB_*` fields and Google Gemini, not the copied MandiWise
-configuration or the OpenAI API.
+`check-db` verifies database access with `SELECT 1`. `check-ai` sends a short
+Gemini request to check model access and quota. Both are Flask commands
+available from `backend/` with the same `--app wsgi:app` flag.
 
-The catalog currently uses in-memory sample data and does not read or write a database.
-SQLAlchemy and Flask-Migrate are initialized for the next stage. No models or initial
-migration exist yet; the app does not call `db.create_all()` on startup.
+### Demo accounts
 
-The PyMySQL driver and TLS configuration are included. The configured database must
-already exist. Set a generated `SECRET_KEY` before adding sessions or authentication.
+Use separate browser profiles or a private window for the two roles.
+In **Sign in**, choose **Demo worker** or **Demo customer**, get a demo code
+and verify it.
 
-From `backend/`, check your connections:
-
-```powershell
-.\.venv\Scripts\python.exe -m flask --app wsgi:app check-db
-.\.venv\Scripts\python.exe -m flask --app wsgi:app check-ai
-```
-
-`check-db` runs `SELECT 1` without schema changes. `check-ai` sends one short request
-to Google and consumes the project's normal Gemini quota. These checks are not run
-on application startup. The homepage works without an AI key.
-If Google rejects generation because the project's free tier is unavailable,
-`check-ai` reports the billing/access requirement. A successful model lookup alone
-does not mean the project has permission or quota to generate responses.
-
-## Build and run as one service
-
-```powershell
-cd frontend
-npm run build
-cd ../backend
-.\.venv\Scripts\python.exe -m flask --app wsgi:app run --port 5000
-```
-
-Open `http://localhost:5000`. Flask serves `frontend/dist` and the API from one origin.
-Rebuild after frontend edits. For Linux production use:
-
-```bash
-cd backend
-gunicorn --bind 0.0.0.0:8000 wsgi:app
-```
-
-The root Dockerfile also builds both parts into one service:
-
-```bash
-docker build -t roshan-rozgar .
-docker run --rm -p 8000:8000 roshan-rozgar
-```
-
-`PORT` can override the container's default port of 8000. Docker commands require Docker installed.
-To use your `.env` values inside the container, replace the run command with:
-
-```bash
-docker run --rm -p 8000:8000 --env-file backend/.env roshan-rozgar
-```
-
-On Render, set the same values in the service's environment settings; local `.env`
-files are not included in the image.
-
-## API
-
-| Method | Route | Result |
+| Role | Sample phone | What it opens |
 | --- | --- | --- |
-| GET | `/api/health` | Application liveness (does not test a database) |
-| GET | `/api/services` | Six service categories and supported cities |
-| GET | `/api/workers` | Fictional worker profiles and `demo: true` |
-| GET | `/api/workers?city=Islamabad&service=electrician&available=true` | Filtered sample workers |
+| Customer | `03000000099` | Requests and completed sample jobs |
+| Worker | `03000000001` | Ahmed Ali, an available electrician in G-10 |
 
-Invalid filters return JSON with HTTP 400. Unknown routes return JSON with HTTP 404.
+The sample profiles, jobs and reviews are fictional. Newly created demo
+accounts, requests and voice notes are stored locally. Sample code delivery
+does not send a real SMS. The label **Phone verified** is reserved for
+accounts that verify with SMS. The worker’s phone number is never published.
 
-## Demo data, AI disclosure, and credits
+### Limits and AI disclosure
 
-- All 12 worker names, neighbourhoods, experience, and availability values in
-  `backend/app/main/data.py` are fictional, seeded in memory, and reset on process restart.
-- City filtering is not GPS or distance-based discovery. Availability is static.
-  No worker has been identity-verified and no booking is performed.
-- **AI service:** Google Gemini Developer API, via the official `google-genai`
-  SDK. A server-side `generate_text` adapter and `check-ai` command are included;
-  user-facing AI/voice workflows are not implemented yet. Model access and quotas
-  depend on the Google project. Documentation: https://ai.google.dev/gemini-api/docs.
-- **AI coding assistant:** OpenAI ChatGPT/Codex helped write this foundation.
-- **Component credit:** RippleButton comes from the supplied `React-RippleButton.rar`
-  UI kit and was adapted for ember styling, links, and buttons. Other supplied
-  components remain outside this minimal homepage.
-- Wordly was inspected for folder conventions only; its project-specific code was not copied.
+- Discovery uses approximate neighbourhood centres and straight-line distances.
+  Availability is current in the database. Job workspaces poll for updates.
+- The Gemini API processes onboarding audio only when the worker requests a
+  profile draft. Voice notes sent to a job are stored with that job and are
+  playable by its two participants. Browser microphone access needs HTTPS or
+  localhost. Speech prompts and guided dictation depend on installed voices and
+  browser speech support. Without a configured Gemini key, guided setup remains
+  available.
+- [Google Gemini Developer API](https://ai.google.dev/gemini-api/docs/audio) via
+  the Google Gen AI SDK is the AI service used for voice onboarding.
+  Supported browsers can additionally provide guided dictation through the
+  [Web Speech API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Speech_API).
+  [Twilio Verify](https://www.twilio.com/docs/verify) handles configured SMS.
+- OpenAI ChatGPT/Codex assisted with requirements analysis, code, and validation.
 
-The current scaffold demonstrates homepage browsing only, not the hackathon's full
-onboarding → discovery → communication → booking → trust flow.
+## Design sources
 
-## Backend checks
+- The electrician hero photo comes from the project’s Figma export.
+- RippleButton, ScrollDrops, GlassNavbar and HeroVisual are adapted from the
+  supplied reusable React components. GSAP and ScrollTrigger power the scroll
+  effects. The hero uses a 1.618:1 split on desktop. White and neutral surfaces
+  carry most of the page, with orange reserved for actions and emphasis.
+- Dribbble references informed the location-first entry, quick trade selection,
+  and straightforward worker UI. [Baru](https://dribbble.com/shots/27469557-Baru-On-Demand-Home-Services-Marketplace-Landing-Page-UI) ·
+  [Job portal design for blue-collar workers](https://dribbble.com/shots/3831879-Job-portal-design-for-blue-collar-workers)
+- The Manrope and Space Grotesk typefaces are served locally through Fontsource.
 
-From `backend/`, run `.\.venv\Scripts\python.exe -m unittest discover -s tests -v`
-(or `.venv/bin/python -m unittest discover -s tests -v` on Linux/macOS).
-Tests cover SQLite fallback, TiDB TLS and special-character credentials, invalid
-configuration, seed toggling, and Gemini response/error handling. Gemini is mocked
-in tests; tests do not use your real key or contact your database.
+## Checks
+
+From `backend/`, run `python -m unittest discover -s tests -v` with the virtual
+environment. The suite covers one-time verification codes and role isolation,
+concurrent booking, audio access, review publication, and provider response
+handling. Provider calls are mocked. From the root, run `npm run build`.

@@ -1,4 +1,4 @@
-"""Sample catalog for the homepage. These are fictional workers, not database records."""
+"""Trade, neighbourhood, and fictional worker seed data."""
 
 SERVICES = [
     {"id": "electrician", "name": "Electrician", "urdu": "الیکٹریشن", "icon": "bolt"},
@@ -25,3 +25,15 @@ WORKERS = [
 ]
 
 CITIES = ["Islamabad", "Rawalpindi"]
+
+# Approximate neighbourhood centres. Used for relative discovery, never exact addresses.
+AREAS = {
+    "Islamabad": {
+        "G-10": (33.677, 73.013), "G-9": (33.689, 73.032), "I-8": (33.672, 73.075),
+        "F-10": (33.697, 73.014), "G-11": (33.667, 72.997), "I-10": (33.650, 73.041),
+    },
+    "Rawalpindi": {
+        "Saddar": (33.596, 73.053), "Satellite Town": (33.634, 73.076), "Chaklala": (33.590, 73.108),
+        "Bahria Town": (33.540, 73.119), "Westridge": (33.616, 73.023), "Peshawar Road": (33.608, 73.032),
+    },
+}

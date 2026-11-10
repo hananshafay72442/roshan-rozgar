@@ -7,6 +7,20 @@ from .services.ai import AIServiceError, generate_text
 
 
 def register_commands(app):
+    @app.cli.command("init-marketplace")
+    def init_marketplace():
+        """Create the marketplace schema and optionally install demo records."""
+        from .services.marketplace import seed_catalog
+
+        try:
+            db.create_all()
+            if app.config["SEED_SAMPLE_DATA"]:
+                seed_catalog()
+        except SQLAlchemyError:
+            db.session.rollback()
+            raise click.ClickException("Database initialization failed. Check the database credentials and permissions.") from None
+        click.echo("Marketplace database is ready.")
+
     @app.cli.command("check-db")
     def check_db():
         """Verify the configured database with a read-only SELECT 1."""
