@@ -9,8 +9,8 @@ Built with React, Vite, GSAP, Flask, SQLAlchemy, and MySQL.
 | --- | --- |
 | Onboarding | Register as a worker with an email address and password, or choose SMS. Record a short introduction in Urdu, Roman Urdu or English. Gemini extracts the name, trade, neighbourhood and experience. Listen to or check the draft, correct any gaps, then publish. The guided path offers trade icons, tap choices and speech prompts. |
 | Discovery | Choose a city, neighbourhood and trade. Browse available workers in approximate distance order and open reviews. |
-| Communication | Request a worker. Both accounts can exchange text or playable voice notes. The worker sends a quote in PKR and the customer sees that exact price before accepting. |
-| Booking | Accept the quote. The worker becomes booked in the same database transaction and a second customer cannot confirm them. Completing or cancelling the booking releases the worker according to their availability setting. |
+| Communication | Request a worker. Both accounts can exchange text or playable voice notes. The worker can decline or offer a price in PKR. Either side can counter the other’s price. |
+| Booking | Accept the other side’s current offer. The worker becomes booked in the same database transaction and a second customer cannot confirm them. Completing or cancelling the booking releases the worker according to their availability setting. |
 | Trust | The customer can leave one review for a completed job. Its rating and note appear in the worker’s public reviews. A badge indicates whether a worker verified by email or SMS. |
 
 Payments, government identity checks and native apps are outside the project
@@ -52,11 +52,12 @@ builds both, initializes the database schema, and runs Gunicorn on port 8000 by 
 
 After running `init-marketplace`, run `python -m flask --app wsgi:app create-admin`
 from `backend/`. Enter a new email and password at the prompts, then sign in
-and open **Admin review**. The review queue covers new or edited worker
-profiles and new job requests. Administrators can approve or reject each
-item and see any supplied contact number. Existing profiles and requests
-start as approved. New worker profiles become discoverable after approval,
-and workers can quote a new request after approval.
+and open **Admin review**. Administrators can approve or reject new or
+edited worker profiles and see their supplied contact numbers. Approved
+profiles become discoverable. Job requests go directly to the selected
+worker, who can send a price or decline. Customers can accept or counter
+with a lower or higher amount. The worker can accept the counteroffer or
+send a new price. Accepting the other party’s offer confirms the booking.
 
 ## Verification, AI and deployment
 
@@ -137,8 +138,7 @@ in MySQL. Email and password registration works without a delivery provider.
   Availability is current in the database. Job workspaces poll for updates.
 - The Gemini API processes onboarding audio only when the worker requests a
   profile draft. Voice notes sent to a job are stored with that job and are
-  playable by its two participants. Admins can play the initial request voice
-  note for moderation. Browser microphone access needs HTTPS or localhost.
+  playable by its two participants. Browser microphone access needs HTTPS or localhost.
   Speech prompts and guided dictation depend on installed voices and
   browser speech support. Without a configured Gemini key, guided setup remains
   available.

@@ -6,11 +6,11 @@ import RippleButton from '../RippleButton/RippleButton'
 import VoiceInput from '../VoiceInput'
 
 export const statusLabels = {
-  requested: 'Requested', quoted: 'Quote sent', confirmed: 'Booked', completed: 'Completed', cancelled: 'Cancelled',
+  requested: 'Waiting for worker', quoted: 'Quote sent', countered: 'Counteroffer sent',
+  confirmed: 'Booked', completed: 'Completed', cancelled: 'Cancelled', declined: 'Declined by worker',
 }
 export function jobStatus(job) {
-  if (job.state !== 'cancelled' && job.moderation === 'pending') return 'Pending review'
-  if (job.moderation === 'rejected') return 'Rejected'
+  if (job.state !== 'cancelled' && job.moderation === 'rejected') return 'Rejected'
   return statusLabels[job.state]
 }
 
@@ -61,9 +61,12 @@ export default function JobDetail({ jobId, call, role, revision, onChange }) {
 
   const { job, messages } = data || {}
   const isWorker = role === 'worker'
-  const approved = job?.moderation === 'approved'
-  const open = job && approved && ['requested', 'quoted', 'confirmed'].includes(job.state)
-  const canQuote = isWorker && approved && ['requested', 'quoted'].includes(job?.state)
+  const negotiating = job?.moderation !== 'rejected' && ['requested', 'quoted', 'countered'].includes(job?.state)
+  const open = negotiating || job?.state === 'confirmed'
+  const canPropose = negotiating && (isWorker || job.state === 'quoted')
+  const canAccept = negotiating && job.state === (isWorker ? 'countered' : 'quoted')
+  const canDecline = negotiating && isWorker
+  const closeAction = canDecline ? 'decline' : 'cancel'
 
   if (!job) return <div className="job-detail">{loadError ? <>
     <p className="form-error" role="alert">{t(loadError)}</p>
@@ -78,7 +81,9 @@ export default function JobDetail({ jobId, call, role, revision, onChange }) {
       </div>
       {loadError && <p className="form-error" role="alert">{t(loadError)} {t('Retrying…')}</p>}
       {job.quote_pkr && <div className="quote-summary">
-        <span>{t(job.state === 'quoted' ? 'Worker’s quote' : job.state === 'cancelled' ? 'Previous quote' : 'Agreed price')}</span>
+        <span>{t({
+          quoted: 'Worker’s quote', countered: 'Customer’s counteroffer', declined: 'Previous quote', cancelled: 'Previous quote',
+        }[job.state] || 'Agreed price')}</span>
         <strong>{t('Rs {amount}', { amount: amount.format(job.quote_pkr) })}</strong>
       </div>}
       <div className="chat-log" role="log" aria-label={t('Job messages')} aria-live="polite">
@@ -88,6 +93,24 @@ export default function JobDetail({ jobId, call, role, revision, onChange }) {
           {item.audio_url && <audio src={item.audio_url} controls preload="none" aria-label={t('Play voice message')} />}
         </article>)}
       </div>
+      {canAccept && <RippleButton className="button-primary" disabled={busy}
+        onClick={() => act('accept', { quote_pkr: job.quote_pkr })}>{t('Accept Rs {amount} and book', { amount: amount.format(job.quote_pkr) })}</RippleButton>}
+      {canPropose && <form className="quote-form" onSubmit={(event) => {
+        event.preventDefault()
+        act(isWorker ? 'quote' : 'counter', {
+          quote_pkr: Number(quote), previous_quote_pkr: job.quote_pkr,
+        }, () => setQuote(''))
+      }}>
+        <label className="form-field">{t(canAccept ? 'Counteroffer in PKR' : 'Quote in PKR')}
+          <input type="number" inputMode="numeric" min="1" max="1000000" step="1" required value={quote} onChange={(event) => setQuote(event.target.value)} />
+          {canAccept && <span className="hint">{t('Suggest a lower or higher price.')}</span>}
+        </label>
+        <RippleButton className="button-primary" type="submit" disabled={busy || (canAccept && Number(quote) === job.quote_pkr)}>
+          {t(canAccept ? 'Send counteroffer' : job.state === 'requested' ? 'Accept request and send price' : 'Update quote')}
+        </RippleButton>
+      </form>}
+      {negotiating && !isWorker && job.state === 'requested' && <p className="hint">{t('The worker will send a price if they can take the job.')}</p>}
+      {negotiating && !isWorker && job.state === 'countered' && <p className="hint">{t('Waiting for the worker to respond to your counteroffer.')}</p>}
       {open && <form className="chat-form" onSubmit={(event) => {
         event.preventDefault()
         act('messages', messageData(message, audio), () => { setMessage(''); setAudio(null) })
@@ -98,17 +121,6 @@ export default function JobDetail({ jobId, call, role, revision, onChange }) {
         <VoiceInput value={audio} onChange={setAudio} disabled={busy} />
         <button type="submit" className="button-secondary align-start" disabled={busy || (!message.trim() && !audio)}>{t('Send message')}</button>
       </form>}
-      {canQuote && <form className="quote-form" onSubmit={(event) => {
-        event.preventDefault()
-        act('quote', { quote_pkr: Number(quote) }, () => setQuote(''))
-      }}>
-        <label className="form-field">{t('Quote in PKR')}
-          <input type="number" inputMode="numeric" min="1" max="1000000" step="1" required value={quote} onChange={(event) => setQuote(event.target.value)} />
-        </label>
-        <RippleButton className="button-primary" type="submit" disabled={busy}>{t(job.quote_pkr ? 'Update quote' : 'Send quote')}</RippleButton>
-      </form>}
-      {!isWorker && job.state === 'quoted' && <RippleButton className="button-primary" disabled={busy}
-        onClick={() => act('accept', { quote_pkr: job.quote_pkr })}>{t('Accept Rs {amount} and book', { amount: amount.format(job.quote_pkr) })}</RippleButton>}
       {isWorker && job.state === 'confirmed' && <RippleButton className="button-primary" disabled={busy} onClick={() => act('complete')}>{t('Mark job complete')}</RippleButton>}
       {job.state === 'completed' && !isWorker && (job.reviewed ? <p className="hint"><Icon name="check" size={17} /> {t('Your review has been published.')}</p>
         : <form className="panel-form review-form" onSubmit={(event) => { event.preventDefault(); act('review', { rating, text: review }) }}>
@@ -120,13 +132,13 @@ export default function JobDetail({ jobId, call, role, revision, onChange }) {
           <label className="form-field">{t('Note (optional)')}<textarea dir="auto" rows={2} maxLength={400} value={review} onChange={(event) => setReview(event.target.value)} /></label>
           <RippleButton type="submit" className="button-primary" disabled={busy || rating < 1}>{t('Post review')}</RippleButton>
         </form>)}
-      {(open || (job.state === 'requested' && job.moderation === 'pending')) && (cancelling ? <div className="cancel-confirm">
-        <p>{t('Cancel this request? A confirmed booking will free the worker for another job.')}</p>
+      {open && (cancelling ? <div className="cancel-confirm">
+        <p>{t(canDecline ? 'Decline this request?' : 'Cancel this request? A confirmed booking will free the worker for another job.')}</p>
         <div className="panel-actions">
           <button type="button" className="button-secondary" onClick={() => setCancelling(false)} disabled={busy}>{t('Keep request')}</button>
-          <button type="button" className="button-secondary danger" disabled={busy} onClick={() => act('cancel', {}, () => setCancelling(false))}>{t('Confirm cancellation')}</button>
+          <button type="button" className="button-secondary danger" disabled={busy} onClick={() => act(closeAction, {}, () => setCancelling(false))}>{t(canDecline ? 'Confirm decline' : 'Confirm cancellation')}</button>
         </div>
-      </div> : <button type="button" className="text-button align-start" disabled={busy} onClick={() => setCancelling(true)}>{t('Cancel request')}</button>)}
+      </div> : <button type="button" className="text-button align-start" disabled={busy} onClick={() => setCancelling(true)}>{t(canDecline ? 'Decline request' : 'Cancel request')}</button>)}
       {error && <p className="form-error" role="alert">{t(error)}</p>}
     </div>
   )

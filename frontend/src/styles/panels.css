@@ -108,7 +108,7 @@ body:has(dialog[open]) { overflow: hidden; }
 .job-head, .quote-summary { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .job-head h3 { font-size: 1.25rem; letter-spacing: -.036em; overflow-wrap: anywhere; }
 .job-status { flex: none; display: inline-block; border-radius: 5px; padding: 4px 7px; background: var(--surface); color: var(--muted); font-size: .74rem; font-weight: 780; }
-.job-status.is-quoted { color: var(--accent-ink); background: var(--orange-soft); }
+.job-status.is-quoted, .job-status.is-countered { color: var(--accent-ink); background: var(--orange-soft); }
 .job-status.is-confirmed, .job-status.is-completed { color: var(--green); background: var(--green-soft); }
 .quote-summary { border-radius: 7px; padding: 8px 10px; background: var(--orange-soft); color: var(--accent-ink); font-size: .87rem; }
 .chat-log { display: grid; gap: 7px; max-height: 275px; overflow: auto; padding: 4px 2px; }
@@ -120,8 +120,8 @@ body:has(dialog[open]) { overflow: hidden; }
 .chat-message strong { font-size: .73rem; color: var(--accent-ink); }
 .chat-message p { font-size: .86rem; }
 .chat-form { display: grid; gap: 6px; border-top: 1px solid var(--line); padding-top: 7px; }
-.quote-form { display: flex; align-items: flex-end; gap: 8px; }
-.quote-form label { flex: 1; }
+.quote-form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; }
+.quote-form label { flex: 1 1 160px; }
 .quote-form .button-primary.ripple-button { min-height: 46px; }
 .review-form { border-top: 1px solid var(--line); padding-top: 8px; }
 .star-options { display: flex; flex-wrap: wrap; gap: 5px; }
