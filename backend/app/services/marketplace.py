@@ -81,7 +81,7 @@ def worker_data(profile, rating=None, distance=None, verification=None):
         "id": profile.id, "name": profile.name, "service_id": profile.service_id,
         "city": profile.city, "area": profile.area, "experience_years": profile.experience_years,
         "available": profile.available, "busy": profile.active_booking_id is not None,
-        "demo": profile.seed_key is not None, "phone_verified": verification == "sms",
+        "moderation": profile.moderation, "demo": profile.seed_key is not None, "phone_verified": verification == "sms",
         "email_verified": verification == "email",
         "rating": rating[0], "review_count": rating[1], "distance_km": distance,
     }

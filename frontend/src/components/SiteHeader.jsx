@@ -17,19 +17,19 @@ function openScrollSection(event, id) {
 
 export default function SiteHeader({ user, openAuth, openWorkspace }) {
   const { t } = useLanguage()
-  const links = useMemo(() => user?.role === 'worker' ? [
-    { href: '#top', label: t('My requests') },
+  const links = useMemo(() => user?.role === 'admin' ? [] : user?.role === 'worker' ? [
+    { href: '#account', label: t('My requests'), onClick: (event) => { event.preventDefault(); openWorkspace() } },
     { href: '#my-profile', label: t('Your public profile.') },
   ] : [
     { href: '#workers', label: t('Find a worker') },
     { href: '#services', label: t('Explore trades'), onClick: (event) => openScrollSection(event, 'trade-rail') },
     ...(!user ? [{ href: '#reviews', label: t('Reviews') },
       { href: '#how-it-works', label: t('How it works'), onClick: (event) => openScrollSection(event, 'scroll-drops') }] : []),
-  ], [t, user])
+  ], [t, user, openWorkspace])
   const actions = useMemo(() => {
     const onClick = (callback) => (event) => { event.preventDefault(); callback() }
     return user
-      ? { action: { href: '#account', label: t(user.role === 'worker' ? 'Worker workspace' : 'My requests'), onClick: onClick(openWorkspace) } }
+      ? { action: { href: '#account', label: t(user.role === 'admin' ? 'Admin review' : user.role === 'worker' ? 'Worker workspace' : 'My requests'), onClick: onClick(openWorkspace) } }
       : {
           action: { href: '#join', label: t('Get started'), onClick: onClick(() => openAuth('register')) },
           secondaryAction: { href: '#sign-in', label: t('Sign in'), onClick: onClick(() => openAuth('login')) },

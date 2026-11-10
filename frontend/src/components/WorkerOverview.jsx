@@ -17,7 +17,7 @@ export default function WorkerOverview({ call, revision, onEditProfile, onOpenWo
     {error ? <p className="form-error" role="alert">{t(error)}</p> : profile ? <div className="worker-profile-summary">
       <div><h3 dir="auto">{profile.name}</h3><p>{t(profile.area)}, {t(profile.city)}</p></div>
       <div><strong>{t('{years} years', { years: profile.experience_years })}</strong><p>{t('Experience')}</p></div>
-      <div><strong>{t(profile.busy ? 'Currently booked' : profile.available ? 'Available now' : 'Not available')}</strong><p>{t('Availability')}</p></div>
+      <div><strong>{t(profile.moderation === 'pending' ? 'Pending review' : profile.moderation === 'rejected' ? 'Rejected' : profile.busy ? 'Currently booked' : profile.available ? 'Available now' : 'Not available')}</strong><p>{t('Availability')}</p></div>
       <button type="button" className="text-button" onClick={() => onOpenWorkspace()}>{t('Manage availability')}</button>
     </div> : <div className="catalog-message"><p>{t('Complete your profile to receive requests from nearby customers.')}</p><button type="button" className="button-primary" onClick={onEditProfile}>{t('Complete your profile')}</button></div>}
   </section>

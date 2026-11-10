@@ -2,7 +2,7 @@ import { useLanguage } from '../../i18n/LanguageProvider'
 import { useEffect, useState } from 'react'
 import Icon from '../Icon'
 import Panel from './Panel'
-import JobDetail, { statusLabels } from './JobDetail'
+import JobDetail, { jobStatus } from './JobDetail'
 
 export default function WorkspacePanel({ user, initialJob, call, onClose, onLogout, onCatalogChange, onEditProfile }) {
   const { t } = useLanguage()
@@ -91,7 +91,7 @@ export default function WorkspacePanel({ user, initialJob, call, onClose, onLogo
           {jobs.map((job) => <button key={job.id} type="button" className="job-list-item" onClick={() => setSelected(job.id)}
             aria-pressed={job.id === activeJob}>
             <strong>{worker ? t('Request {id}', { id: job.id }) : job.worker.name}</strong>
-            <small>{t(statusLabels[job.state])}{job.quote_pkr ? ` · ${t('Rs {amount}', { amount: job.quote_pkr.toLocaleString('en-PK') })}` : ''}</small>
+            <small>{t(jobStatus(job))}{job.quote_pkr ? ` · ${t('Rs {amount}', { amount: job.quote_pkr.toLocaleString('en-PK') })}` : ''}</small>
           </button>)}
         </nav>
         <JobDetail key={activeJob} jobId={activeJob} call={call} revision={revision} role={user.role} onChange={changed} />

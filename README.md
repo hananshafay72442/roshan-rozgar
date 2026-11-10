@@ -48,6 +48,16 @@ and `python -m flask --app wsgi:app run` from `backend/` using the virtual
 environment. Flask serves the built frontend. The existing Dockerfile also
 builds both, initializes the database schema, and runs Gunicorn on port 8000 by default.
 
+## Admin review
+
+After running `init-marketplace`, run `python -m flask --app wsgi:app create-admin`
+from `backend/`. Enter a new email and password at the prompts, then sign in
+and open **Admin review**. The review queue covers new or edited worker
+profiles and new job requests. Administrators can approve or reject each
+item and see any supplied contact number. Existing profiles and requests
+start as approved. New worker profiles become discoverable after approval,
+and workers can quote a new request after approval.
+
 ## Verification, AI and deployment
 
 | Setting | Purpose |
@@ -225,3 +235,16 @@ database. Without `TEST_MYSQL_URL`, only the database-independent tests run.
 The suite covers the schema upgrade, verification, role isolation, concurrent
 booking, audio access, and reviews. Provider calls are mocked. From the
 root, run `npm run build`.
+
+## Mock and real data
+
+- With `SEED_SAMPLE_DATA=1`, the fictional workers, sample customer, completed
+  jobs, messages and reviews are seeded for the demo. The trade and neighbourhood
+  lists and approximate coordinates are built-in reference data.
+- With `DEMO_VERIFICATION=1`, the development app shows a demo code instead of
+  contacting the unconfigured provider. Tests mock SMS, email and AI provider
+  responses.
+- Real registrations, contact numbers, worker profiles, requests, voice notes,
+  ratings and moderation decisions are stored in MySQL. Admin decisions are
+  manual. Email signup does not verify ownership of the address or optional
+  contact number.

@@ -8,6 +8,12 @@ import VoiceInput from '../VoiceInput'
 export const statusLabels = {
   requested: 'Requested', quoted: 'Quote sent', confirmed: 'Booked', completed: 'Completed', cancelled: 'Cancelled',
 }
+export function jobStatus(job) {
+  if (job.state !== 'cancelled' && job.moderation === 'pending') return 'Pending review'
+  if (job.moderation === 'rejected') return 'Rejected'
+  return statusLabels[job.state]
+}
+
 const amount = new Intl.NumberFormat('en-PK')
 
 export default function JobDetail({ jobId, call, role, revision, onChange }) {
@@ -55,8 +61,9 @@ export default function JobDetail({ jobId, call, role, revision, onChange }) {
 
   const { job, messages } = data || {}
   const isWorker = role === 'worker'
-  const open = job && ['requested', 'quoted', 'confirmed'].includes(job.state)
-  const canQuote = isWorker && ['requested', 'quoted'].includes(job?.state)
+  const approved = job?.moderation === 'approved'
+  const open = job && approved && ['requested', 'quoted', 'confirmed'].includes(job.state)
+  const canQuote = isWorker && approved && ['requested', 'quoted'].includes(job?.state)
 
   if (!job) return <div className="job-detail">{loadError ? <>
     <p className="form-error" role="alert">{t(loadError)}</p>
@@ -67,7 +74,7 @@ export default function JobDetail({ jobId, call, role, revision, onChange }) {
     <div className="job-detail">
       <div className="job-head">
         <div><p className="eyebrow">{t('Request {id}', { id: job.id })}</p><h3>{isWorker ? t('Job conversation') : job.worker.name}</h3></div>
-        <span className={`job-status is-${job.state}`}>{t(statusLabels[job.state])}</span>
+        <span className={`job-status is-${job.state}`}>{t(jobStatus(job))}</span>
       </div>
       {loadError && <p className="form-error" role="alert">{t(loadError)} {t('Retrying…')}</p>}
       {job.quote_pkr && <div className="quote-summary">
@@ -113,7 +120,7 @@ export default function JobDetail({ jobId, call, role, revision, onChange }) {
           <label className="form-field">{t('Note (optional)')}<textarea dir="auto" rows={2} maxLength={400} value={review} onChange={(event) => setReview(event.target.value)} /></label>
           <RippleButton type="submit" className="button-primary" disabled={busy || rating < 1}>{t('Post review')}</RippleButton>
         </form>)}
-      {open && (cancelling ? <div className="cancel-confirm">
+      {(open || (job.state === 'requested' && job.moderation === 'pending')) && (cancelling ? <div className="cancel-confirm">
         <p>{t('Cancel this request? A confirmed booking will free the worker for another job.')}</p>
         <div className="panel-actions">
           <button type="button" className="button-secondary" onClick={() => setCancelling(false)} disabled={busy}>{t('Keep request')}</button>

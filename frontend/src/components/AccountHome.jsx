@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useLanguage } from '../i18n/LanguageProvider'
 import Icon from './Icon'
-import { statusLabels } from './panels/JobDetail'
+import { jobStatus } from './panels/JobDetail'
 
 export default function AccountHome({ user, call, revision, onOpen, onEditProfile }) {
   const { t } = useLanguage()
@@ -42,7 +42,7 @@ export default function AccountHome({ user, call, revision, onOpen, onEditProfil
         : jobs === null ? <p role="status">{t('Loading jobs…')}</p>
           : latest.length ? <div className="home-request-list">{latest.map(job => <button type="button" key={job.id} className="home-request" onClick={() => onOpen(job.id)}>
             <span><strong>{worker ? t('Request {id}', { id: job.id }) : job.worker.name}</strong>
-              <small>{t(statusLabels[job.state])}{job.state === 'completed' && !job.reviewed ? ` · ${t('Leave a review')}` : ''}</small></span>
+              <small>{t(jobStatus(job))}{job.state === 'completed' && !job.reviewed ? ` · ${t('Leave a review')}` : ''}</small></span>
             <span className="home-request-price">{job.quote_pkr ? t('Rs {amount}', { amount: job.quote_pkr.toLocaleString('en-PK') }) : t('View request')}<Icon name="chevron" size={18} /></span>
           </button>)}</div> : <div className="home-requests-empty"><Icon name="chat" size={28} /><h3>{t('No requests yet.')}</h3><p>{t(worker ? 'Requests from neighbours will appear here.' : 'Choose a local worker to start a conversation.')}</p></div>}
       {jobs?.length > 0 && <button type="button" className="text-button" onClick={() => onOpen()}>{t('View all jobs')} <Icon name="chevron" size={15} /></button>}
