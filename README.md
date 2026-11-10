@@ -56,6 +56,22 @@ Copy `backend/.env.example` to `backend/.env` for optional configuration.
 Gemini request to check model access and quota. Both are Flask commands
 available from `backend/` with the same `--app wsgi:app` flag.
 
+### Turn on live SMS verification
+
+1. Create a six-digit service in the [Twilio Verify Console](https://www.twilio.com/console/verify/services).
+2. Set `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` and `TWILIO_VERIFY_SERVICE_SID`
+   in the backend host’s environment settings. For a local backend, put them in
+   `backend/.env`. Keep the token in the backend environment.
+3. Allow Pakistan SMS traffic in [Verify Geo Permissions](https://www.twilio.com/docs/verify/preventing-toll-fraud/verify-geo-permissions).
+4. Restart the backend or redeploy it with the new environment. From `backend/`,
+   run `python -m flask --app wsgi:app check-sms` with the virtual environment.
+   This checks service access and code length without sending an SMS.
+
+For a local demo with on-screen one-time codes, use `APP_ENV=development`,
+leave `DB_HOST` blank, and leave the Twilio fields unset. A server with
+demo mode off and no Twilio service shows the sign-in availability message
+before asking the user for a number.
+
 ### Demo accounts
 
 Use separate browser profiles or a private window for the two roles.
@@ -99,7 +115,11 @@ accounts that verify with SMS. The worker’s phone number is never published.
 - Dribbble references informed the location-first entry, quick trade selection,
   and straightforward worker UI. [Baru](https://dribbble.com/shots/27469557-Baru-On-Demand-Home-Services-Marketplace-Landing-Page-UI) ·
   [Job portal design for blue-collar workers](https://dribbble.com/shots/3831879-Job-portal-design-for-blue-collar-workers)
-- The Manrope and Space Grotesk typefaces are served locally through Fontsource.
+- Roman Urdu opens by default. The header switches between Roman Urdu, Urdu script
+  and English. Manrope, Space Grotesk, and Noto Nastaliq Urdu are served locally
+  through Fontsource.
+- Section 01’s illustrated service cards draw on the category clarity of
+  [Nasir Uddin’s handyman booking design](https://dribbble.com/shots/27384919-Home-Services-Handyman-Booking-Website-Design).
 
 ## Checks
 

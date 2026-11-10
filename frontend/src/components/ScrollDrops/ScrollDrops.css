@@ -1,22 +1,11 @@
 .scroll-drops {
-  --drops-height: 100vh;
-  --drops-background: #f7f8fa;
   position: relative;
-  isolation: isolate;
-  min-height: calc(var(--drops-height) * 2);
-  background: var(--drops-background);
-}
-
-@supports (height: 100svh) {
-  .scroll-drops {
-    --drops-height: 100svh;
-  }
+  background: var(--drops-background, #f7f8fa);
 }
 
 .scroll-drops__stage {
-  position: sticky;
-  top: 0;
-  height: var(--drops-height);
+  position: relative;
+  isolation: isolate;
 }
 
 .scroll-drops__field {
@@ -58,15 +47,5 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .scroll-drops {
-    min-height: var(--drops-height);
-  }
-
-  .scroll-drops__stage {
-    position: relative;
-  }
-
-  .scroll-drops__drop {
-    will-change: auto;
-  }
+  .scroll-drops__drop { will-change: auto; }
 }

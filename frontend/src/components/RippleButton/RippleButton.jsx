@@ -55,7 +55,7 @@ export default function RippleButton({
       <span className="ripple-button__label">
         {children}
         {showArrow && (
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <svg className="directional-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
             <path
               d="M3.5 8h9M8.5 3.5 13 8l-4.5 4.5"
               stroke="currentColor"

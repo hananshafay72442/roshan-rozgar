@@ -1,14 +1,16 @@
 .hero-visual {
   position: relative;
   min-width: 0;
-  padding: 0 12px 17px 0;
+  padding-inline-end: 12px;
+  padding-block-end: 17px;
 }
 
 .visual-stage { position: relative; isolation: isolate; }
 .visual-halo {
   position: absolute;
   z-index: -1;
-  inset: 15% -12px -17px 12%;
+  inset-block: 15% -17px;
+  inset-inline: 12% -12px;
   border-radius: 34% 16% 28% 32% / 32% 20% 30% 26%;
   background: var(--orange);
   animation: morph-halo 12s ease-in-out infinite alternate;
@@ -31,19 +33,17 @@
   color: #fff;
   background: linear-gradient(transparent, rgb(18 16 15 / .82));
 }
-.visual-photo figcaption span { color: #fff0e7; font: 700 .67rem/1.2 var(--font-body); letter-spacing: .15em; }
+.visual-photo figcaption span { color: #fff0e7; text-transform: uppercase; font: 700 .67rem/1.2 var(--font-body); letter-spacing: .15em; }
 .visual-photo figcaption strong { font: 650 1.5rem/1 var(--font-heading); }
 .visual-index {
   position: absolute;
-  right: 14px;
-  top: 14px;
+  inset-inline-end: 14px;
+  inset-block-start: 14px;
   display: grid;
   place-items: center;
   width: 43px;
-  aspect-ratio: 1;
+  height: 43px;
   border-radius: 10px;
-  background: var(--orange);
-  color: var(--on-orange);
   animation: float-index 6s ease-in-out infinite;
 }
 
@@ -57,3 +57,5 @@
 @media (prefers-reduced-motion: reduce) {
   .visual-halo, .visual-index { animation: none; }
 }
+
+:root[dir='rtl'] .visual-photo figcaption :is(strong, span) { line-height: 1.7; letter-spacing: normal; }

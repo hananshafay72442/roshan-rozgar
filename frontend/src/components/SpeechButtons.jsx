@@ -1,7 +1,9 @@
+import { useLanguage } from '../i18n/LanguageProvider'
 import { useEffect, useRef, useState } from 'react'
 import Icon from './Icon'
 
 export function Listen({ text, english, label = 'Listen to this step' }) {
+  const { t } = useLanguage()
   if (!window.speechSynthesis) return null
   function speak() {
     const synth = window.speechSynthesis
@@ -13,10 +15,11 @@ export function Listen({ text, english, label = 'Listen to this step' }) {
     prompt.rate = .9
     synth.speak(prompt)
   }
-  return <button type="button" className="button-secondary" onClick={speak}><Icon name="volume" size={17} />{label}</button>
+  return <button type="button" className="button-secondary" onClick={speak}><Icon name="volume" size={17} />{t(label)}</button>
 }
 
 export function Dictate({ onText, label }) {
+  const { t, language } = useLanguage()
   const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition
   const [status, setStatus] = useState('')
   const active = useRef(null)
@@ -36,7 +39,7 @@ export function Dictate({ onText, label }) {
     setStatus('Listening…')
     const recognition = new Recognition()
     active.current = recognition
-    recognition.lang = 'ur-PK'
+    recognition.lang = language === 'en' ? 'en-PK' : 'ur-PK'
     recognition.onresult = (event) => {
       onText(event.results[0][0].transcript)
       setStatus('')
@@ -53,6 +56,6 @@ export function Dictate({ onText, label }) {
   }
 
   return <div className="dictation"><button type="button" className="button-secondary" onClick={record} disabled={status === 'Listening…'}>
-    <Icon name="mic" size={18} />{label}
-  </button>{status && <p className="hint" role="status">{status}</p>}</div>
+    <Icon name="mic" size={18} />{t(label)}
+  </button>{status && <p className="hint" role="status">{t(status)}</p>}</div>
 }

@@ -95,6 +95,35 @@ class MarketplaceTests(unittest.TestCase):
                 self.assertEqual(self.post(client, "/auth/code", {"phone": payload["phone"], "intent": "login"}).status_code, 201)
                 self.assertEqual(self.post(client, "/auth/verify", {"code": "987654"}).json["user"]["role"], "worker")
 
+    def test_missing_sms_setup_is_visible_before_asking_for_a_code(self):
+        client = self.app.test_client()
+        self.assertEqual(client.get("/api/session").json["verification_mode"], "demo")
+        self.app.config["DEMO_VERIFICATION"] = False
+        self.assertEqual(client.get("/api/session").json["verification_mode"], "unavailable")
+        result = self.post(client, "/auth/code", {
+            "phone": "03001000003", "role": "worker", "intent": "register",
+        })
+        self.assertEqual(result.status_code, 503)
+        self.assertNotIn("demo_code", result.json)
+
+    def test_check_sms_reads_the_service_without_sending_a_code(self):
+        self.app.config.update(
+            TWILIO_ACCOUNT_SID="test-account", TWILIO_AUTH_TOKEN="test-token",
+            TWILIO_VERIFY_SERVICE_SID="test-service",
+        )
+        with patch("app.services.verification.httpx.get") as read:
+            read.return_value.json.return_value = {"code_length": 6}
+            result = self.app.test_cli_runner().invoke(args=["check-sms"])
+            self.assertEqual(result.exit_code, 0, result.output)
+            read.assert_called_once_with(
+                "https://verify.twilio.com/v2/Services/test-service",
+                auth=("test-account", "test-token"), timeout=8,
+            )
+            read.return_value.json.return_value = {"code_length": 4}
+            result = self.app.test_cli_runner().invoke(args=["check-sms"])
+            self.assertNotEqual(result.exit_code, 0)
+            self.assertIn("six digits", result.output)
+
     def test_booking_is_atomic_and_review_updates_discovery(self):
         worker, worker_id = self.new_worker()
         customers = [self.verified("customer", index) for index in (2, 3)]

@@ -1,4 +1,6 @@
 import { useEffect, useRef } from 'react';
+import { useLanguage } from '../../i18n/LanguageProvider';
+import BrandMark from '../BrandMark';
 import electricianPhoto from '../../assets/roshan-electrician.webp';
 import './HeroVisual.css';
 
@@ -9,6 +11,7 @@ export default function HeroVisual({
   imageAlt = 'Electrician using a screwdriver at an electrical panel',
   ...props
 }) {
+  const { t } = useLanguage();
   const rootRef = useRef(null);
   const stageRef = useRef(null);
 
@@ -91,12 +94,10 @@ export default function HeroVisual({
       <div ref={stageRef} className="visual-stage">
         <div className="visual-halo" aria-hidden="true" />
         <figure className="visual-photo">
-          <img src={imageSrc} alt={imageAlt} width="1500" height="1125" fetchPriority="high" />
-          <figcaption><span>01 / THE TRADES</span><strong>Electrician</strong></figcaption>
+          <img src={imageSrc} alt={t(imageAlt)} width="1500" height="1125" fetchPriority="high" />
+          <figcaption><span>01 / {t('The trades')}</span><strong>{t('Electrician')}</strong></figcaption>
         </figure>
-        <span className="visual-index" aria-hidden="true">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 2v20M2 12h20M5 5l14 14M19 5 5 19" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
-        </span>
+        <BrandMark className="visual-index" />
       </div>
     </div>
   );

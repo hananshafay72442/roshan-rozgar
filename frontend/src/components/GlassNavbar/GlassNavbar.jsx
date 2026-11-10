@@ -26,6 +26,8 @@ export default function GlassNavbar({
   secondaryAction,
   action = defaultAction,
   activeHref,
+  controls,
+  labels = {},
   overHero = true,
   menuNote = "Good things start with a conversation.",
   LinkComponent = "a",
@@ -97,7 +99,7 @@ export default function GlassNavbar({
   }, [open]);
 
   function navigation(mobile = false) {
-    return links.map(({ href, label, description, active, ...props }) => (
+    return links.map(({ href, label, description, active, onClick, ...props }) => (
       <LinkComponent
         {...props}
         key={href}
@@ -110,7 +112,10 @@ export default function GlassNavbar({
               : "page"
             : undefined
         }
-        onClick={close}
+        onClick={(event) => {
+          close();
+          onClick?.(event);
+        }}
       >
         <span>
           {label}
@@ -176,6 +181,7 @@ export default function GlassNavbar({
             <span className="gn-button-content">
               {action.label}
               <svg
+                className="directional-icon"
                 width="16"
                 height="16"
                 viewBox="0 0 24 24"
@@ -219,7 +225,7 @@ export default function GlassNavbar({
           <LinkComponent
             className="gn-brand"
             href={brandHref}
-            aria-label={`${brand} home`}
+            aria-label={labels.home || `${brand} home`}
             onClick={close}
           >
             <span className="gn-brand-icon" aria-hidden="true">
@@ -237,21 +243,22 @@ export default function GlassNavbar({
             </span>
             <span>{brand}</span>
           </LinkComponent>
-          <nav className="gn-desktop gn-primary" aria-label="Main navigation">
+          <nav className="gn-desktop gn-primary" aria-label={labels.navigation || "Main navigation"}>
             <span className="gn-hover" aria-hidden="true" />
             {navigation()}
           </nav>
           <div className="gn-desktop gn-actions">{actions()}</div>
+          {controls}
           <button
             ref={toggle}
             className="gn-toggle"
             type="button"
             aria-expanded={open}
             aria-controls={menuId}
-            aria-label={open ? "Close navigation" : "Open navigation"}
+            aria-label={open ? labels.closeNavigation || "Close navigation" : labels.openNavigation || "Open navigation"}
             onClick={() => setOpen((value) => !value)}
           >
-            <span className="gn-toggle-label">{open ? "Close" : "Menu"}</span>
+            <span className="gn-toggle-label">{open ? labels.close || "Close" : labels.menu || "Menu"}</span>
             <span className="gn-toggle-icon" aria-hidden="true">
               <span />
               <span />
@@ -265,7 +272,7 @@ export default function GlassNavbar({
           aria-hidden={!open}
         >
           <div className="gn-mobile-content">
-            <nav aria-label="Mobile navigation">{navigation(true)}</nav>
+            <nav aria-label={labels.mobileNavigation || "Mobile navigation"}>{navigation(true)}</nav>
             {(action || secondaryAction) && (
               <div className="gn-mobile-actions">{actions()}</div>
             )}
