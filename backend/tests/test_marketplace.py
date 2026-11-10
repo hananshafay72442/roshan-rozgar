@@ -72,6 +72,9 @@ class MarketplaceTests(unittest.TestCase):
         verify = self.post(client, "/auth/verify", {"code": start.json["demo_code"]})
         self.assertEqual(verify.status_code, 200, verify.json)
         self.assertEqual(verify.json["user"]["role"], role)
+        if role == "customer":
+            saved = client.patch('/api/account/profile', json={'name': 'Test Customer', 'city': 'Islamabad', 'area': 'G-10'}, headers=self.headers(client))
+            self.assertEqual(saved.status_code, 200, saved.json)
         return client
 
     def new_worker(self):
@@ -222,11 +225,13 @@ class MarketplaceTests(unittest.TestCase):
         self.assertIn("succeeded", result.output)
 
     def test_seed_switch_controls_the_catalog(self):
-        client = self.app.test_client()
+        client = self.verified("customer", 9)
         self.assertEqual(client.get("/api/workers").json["total"], 0)
         self.app.config["SEED_SAMPLE_DATA"] = True
         self.initialize_database()
-        self.assertEqual(client.get("/api/workers").json["total"], 12)
+        nearby = client.get("/api/workers").json
+        self.assertGreater(nearby["total"], 0)
+        self.assertTrue(all(worker['city'] == 'Islamabad' and worker['distance_km'] <= 5 for worker in nearby['workers']))
         self.assertEqual(len(client.get("/api/services").json["services"]), 6)
         self.assertEqual(client.get("/api/health").status_code, 200)
 

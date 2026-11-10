@@ -3,7 +3,7 @@ import { useLanguage } from '../i18n/LanguageProvider'
 import Icon from './Icon'
 import { statusLabels } from './panels/JobDetail'
 
-export default function AccountHome({ user, call, revision, onOpen }) {
+export default function AccountHome({ user, call, revision, onOpen, onEditProfile }) {
   const { t } = useLanguage()
   const [jobs, setJobs] = useState(null)
   const [error, setError] = useState('')
@@ -30,6 +30,7 @@ export default function AccountHome({ user, call, revision, onOpen }) {
       <h1 id="hero-title">{t(worker ? 'Your work, at a glance.' : 'Your home, taken care of.')}</h1>
       <p className="hero-description">{t(worker ? 'See new requests, discuss the work and manage your bookings.' : 'Track your requests, check quotes and keep your jobs moving.')}</p>
       <div className="hero-actions">
+        <button type="button" className="button-secondary" onClick={onEditProfile}>{t('Edit your profile')}</button>
         <button type="button" className="button-primary" onClick={() => onOpen()}>{t(worker && !user.profile_complete ? 'Complete your profile' : worker ? 'Open my workspace' : 'My requests')}</button>
         {!worker && <a className="button-secondary" href="#workers">{t('Find a worker')}</a>}
       </div>

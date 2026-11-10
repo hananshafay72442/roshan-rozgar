@@ -9,6 +9,8 @@ import RippleButton from '../components/RippleButton/RippleButton'
 import TradeRail from '../components/TradeRail'
 import WorkerCard from '../components/WorkerCard'
 import AccountHome from '../components/AccountHome'
+import Testimonials from '../components/Testimonials'
+import WorkerOverview from '../components/WorkerOverview'
 import '../styles/home.css'
 
 const reasons = [
@@ -21,18 +23,19 @@ const steps = [
   { title: 'Talk it through', text: 'Send a voice note or a message. Get a quote and confirm when you’re happy with the price.' },
   { title: 'Leave a review', text: 'After the work is done, share how it went to help the next neighbour choose.' },
 ]
-const fallbackCities = ['Islamabad', 'Rawalpindi']
 const noServices = []
 
-export default function HomePage({ revision, user, call, onOpenWorkspace, onRequest, onReviews, onJoinWorker }) {
+export default function HomePage({ revision, user, call, onOpenWorkspace, onRequest, onReviews, onJoinWorker, onEditProfile, onBrowse }) {
   const { t } = useLanguage()
   const hero = useRef(null)
   const workerSection = useRef(null)
-  const [city, setCity] = useState('Islamabad')
-  const [area, setArea] = useState('')
+  const customer = user?.role === 'customer'
+  const worker = user?.role === 'worker'
+  const city = user?.location?.city || 'Islamabad'
+  const area = user?.location?.area || ''
   const [service, setService] = useState('')
   const [available, setAvailable] = useState(true)
-  const { catalog, workers, loading, error, retry } = useCatalog({ city, area, service, available }, revision)
+  const { catalog, workers, loading, error, retry } = useCatalog({ city, area, service, available, enabled: customer && !!area }, revision)
   const services = catalog?.services || noServices
 
   useEffect(() => {
@@ -43,11 +46,12 @@ export default function HomePage({ revision, user, call, onOpenWorkspace, onRequ
       frame = requestAnimationFrame(() => ScrollTrigger.refresh())
     })
     observer.observe(hero.current)
-    observer.observe(workerSection.current)
+    if (workerSection.current) observer.observe(workerSection.current)
     return () => { observer.disconnect(); cancelAnimationFrame(frame) }
   }, [])
 
   function chooseTrade(id) {
+    if (!customer) { onBrowse(); return }
     setService(id)
     document.getElementById('workers')?.scrollIntoView({ block: 'start' })
   }
@@ -55,7 +59,7 @@ export default function HomePage({ revision, user, call, onOpenWorkspace, onRequ
   return (
     <main id="main" tabIndex={-1}>
       <section ref={hero} className={`hero container${user ? ' hero-signed-in' : ''}`} id="top" data-hero-pointer-area aria-labelledby="hero-title">
-        {user ? <AccountHome key={user.id} user={user} call={call} revision={revision} onOpen={onOpenWorkspace} /> : <>
+        {user ? <AccountHome key={user.id} user={user} call={call} revision={revision} onOpen={onOpenWorkspace} onEditProfile={onEditProfile} /> : <>
         <div className="hero-copy">
           <p className="hero-locale"><Icon name="pin" size={17} /> {t('Islamabad & Rawalpindi')}</p>
           <h1 id="hero-title">{t('Skilled hands.')}<br /><span>{t('Closer to home.')}</span></h1>
@@ -70,34 +74,29 @@ export default function HomePage({ revision, user, call, onOpenWorkspace, onRequ
         </>}
       </section>
 
-      <div className="container">
+      {!user && <div className="container">
         <ul className="value-strip" aria-label={t('How Roshan Rozgar helps')}>
           {reasons.map(({ icon, title, text }) => <li key={title}>
             <span className="value-icon"><Icon name={icon} size={24} /></span>
             <span><strong>{t(title)}</strong><small>{t(text)}</small></span>
           </li>)}
         </ul>
-      </div>
+      </div>}
 
-      <TradeRail services={services} selected={service} onSelect={chooseTrade} />
+      {!worker && <TradeRail services={services} selected={service} onSelect={chooseTrade} />}
 
-      <section ref={workerSection} className="container worker-section" id="workers" aria-labelledby="workers-title">
+      {!worker && <section ref={workerSection} className="container worker-section" id="workers" aria-labelledby="workers-title">
         <div className="section-heading">
           <div><p className="eyebrow">02 <span /> {t('Find someone nearby')}</p><h2 id="workers-title">{t('Local workers.')}</h2></div>
-          <p className="section-deck">{t('Choose your neighbourhood to see who’s closest and ready to help.')}</p>
+          <p className="section-deck">{t('Workers within 5 km of your saved neighbourhood.')}</p>
         </div>
-        <div className="worker-filters" aria-label={t('Filter local workers')}>
-          <label className="filter-field"><span>{t('City')}</span>
-            <select value={city} onChange={(event) => { setCity(event.target.value); setArea('') }}>
-              {(catalog?.cities || fallbackCities).map((name) => <option key={name} value={name}>{t(name)}</option>)}
-            </select>
-          </label>
-          <label className="filter-field"><span>{t('Neighbourhood')}</span>
-            <select value={area} onChange={(event) => setArea(event.target.value)}>
-              <option value="">{t('Any neighbourhood')}</option>
-              {catalog?.areas?.[city]?.map((name) => <option key={name} value={name}>{t(name)}</option>)}
-            </select>
-          </label>
+        {!customer || !area ? <div className="discovery-gate">
+          <Icon name="pin" size={30} /><h3>{t(customer ? 'Set your neighbourhood.' : 'Find help close to home.')}</h3>
+          <p>{t(customer ? 'Save your neighbourhood to see workers within 5 km. Distances use approximate neighbourhood centres.' : 'Sign in to discover available workers near you and send a request.')}</p>
+          <button type="button" className="button-primary" onClick={onBrowse}>{t(customer ? 'Set my location' : 'Get started')}</button>
+        </div> : <><div className="worker-filters nearby-filters" aria-label={t('Filter local workers')}>
+          <div className="saved-location"><span>{t('Your neighbourhood')}</span><strong>{t(area)}, {t(city)}</strong>
+            <button type="button" className="text-button" onClick={onEditProfile}>{t('Change location')}</button></div>
           <label className="filter-field"><span>{t('Trade')}</span>
             <select value={service} onChange={(event) => setService(event.target.value)}>
               <option value="">{t('All trades')}</option>
@@ -122,10 +121,14 @@ export default function HomePage({ revision, user, call, onOpenWorkspace, onRequ
               {workers.map((worker) => <WorkerCard key={worker.id} worker={worker}
                 service={services.find(({ id }) => id === worker.service_id)} onRequest={onRequest} onReviews={onReviews} />)}
             </div> : <p className="catalog-message">{t('No workers match your filters. Try a different trade or include workers who are off duty.')}</p>}
-          </>}
-      </section>
+          </>}</>}
+      </section>}
 
-      <ScrollDrops className="how-section" id="how-it-works" count={28} startAt="[data-drops-start]" aria-labelledby="how-title">
+      {worker && <WorkerOverview call={call} revision={revision} onEditProfile={onEditProfile} onOpenWorkspace={onOpenWorkspace} />}
+
+      {!user && <Testimonials />}
+
+      {!user && <ScrollDrops className="how-section" id="how-it-works" count={28} startAt="[data-drops-start]" aria-labelledby="how-title">
         <div className="container how-inner">
           <div>
             <p className="eyebrow" data-drops-start>03 <span /> {t('How it works')}</p>
@@ -139,7 +142,7 @@ export default function HomePage({ revision, user, call, onOpenWorkspace, onRequ
             </li>)}
           </ol>
         </div>
-      </ScrollDrops>
+      </ScrollDrops>}
 
       {!user && <section className="container" id="for-workers" aria-labelledby="worker-intro-title">
         <div className="worker-intro">

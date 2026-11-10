@@ -16,12 +16,12 @@ const steps = [
   { id: 'name', title: 'What should customers call you?', urdu: 'آپ کا نام کیا ہے؟' },
 ]
 
-export default function ProfilePanel({ voiceEnabled, call, onSuccess, onClose, onLogout }) {
+export default function ProfilePanel({ editing = false, voiceEnabled, call, onSuccess, onClose, onLogout }) {
   const { t } = useLanguage()
   const [catalog, setCatalog] = useState(null)
   const [attempt, setAttempt] = useState(0)
   const [loadError, setLoadError] = useState('')
-  const [step, setStep] = useState(voiceEnabled ? -1 : 0)
+  const [step, setStep] = useState(editing ? 0 : voiceEnabled ? -1 : 0)
   const [profile, setProfile] = useState(empty)
   const [audio, setAudio] = useState(null)
   const [busy, setBusy] = useState(false)
@@ -29,10 +29,11 @@ export default function ProfilePanel({ voiceEnabled, call, onSuccess, onClose, o
 
   useEffect(() => {
     const controller = new AbortController()
-    call('/services', { signal: controller.signal }).then(setCatalog)
+    Promise.all([call('/services', { signal: controller.signal }), editing ? call('/profile', { signal: controller.signal }) : null])
+      .then(([services, data]) => { if (!controller.signal.aborted) { setCatalog(services); if (data?.profile) setProfile(data.profile) } })
       .catch((failure) => { if (!controller.signal.aborted) setLoadError(failure.message) })
     return () => controller.abort()
-  }, [call, attempt])
+  }, [call, attempt, editing])
 
   function update(values) {
     setProfile((current) => ({ ...current, ...values }))
@@ -55,7 +56,7 @@ export default function ProfilePanel({ voiceEnabled, call, onSuccess, onClose, o
   async function publish() {
     setBusy(true)
     setError('')
-    try { onSuccess(await call('/profile', { method: 'POST', data: profile })) }
+    try { onSuccess(await call('/profile', { method: editing ? 'PATCH' : 'POST', data: profile })) }
     catch (failure) { setError(failure.message) }
     finally { setBusy(false) }
   }
@@ -73,7 +74,7 @@ export default function ProfilePanel({ voiceEnabled, call, onSuccess, onClose, o
   const trade = catalog?.services.find(({ id }) => profile.service_id === id)
 
   return (
-    <Panel title={t('Set up your trade profile.')} kicker={t('Worker onboarding')} onClose={onClose}>
+    <Panel title={t(editing ? 'Edit your profile' : 'Set up your trade profile.')} kicker={t('Your trade account')} onClose={onClose}>
       {!catalog && (loadError ? <div role="alert"><p className="form-error">{t(loadError)}</p>
         <button type="button" className="button-secondary" onClick={() => { setLoadError(''); setAttempt((value) => value + 1) }}>{t('Try again')}</button>
       </div> : <p role="status">{t('Loading trades and neighbourhoods…')}</p>)}
@@ -86,7 +87,7 @@ export default function ProfilePanel({ voiceEnabled, call, onSuccess, onClose, o
         </div>
         <Listen text="اپنا نام، ہنر، علاقہ اور تجربہ بتائیں۔" english="Say your name, trade, neighbourhood, and years of experience." />
         <VoiceInput label="Record my introduction" value={audio} onChange={setAudio} seconds={28} disabled={busy} />
-        <p className="hint">{t('When you choose “Fill my profile,” your recording is sent to Google Gemini to extract these four details.')}</p>
+        <p className="hint">{t('Your recording is sent to the configured AI provider only when you choose “Fill my profile.”')}</p>
         <RippleButton className="button-primary" onClick={useVoice} disabled={!audio || busy}>{t(busy ? 'Listening to your introduction…' : 'Fill my profile')}</RippleButton>
         <button type="button" className="text-button align-start" disabled={busy} onClick={() => { setStep(0); setError('') }}>{t('Use guided setup')}</button>
       </div>}
@@ -146,7 +147,7 @@ export default function ProfilePanel({ voiceEnabled, call, onSuccess, onClose, o
           english={`${profile.name}, ${trade?.name}, ${profile.area} ${profile.city}, ${profile.experience_years} years of experience.`} label="Listen to my profile" />
         <div className="panel-actions">
           <button type="button" className="button-secondary" disabled={busy} onClick={() => setStep(0)}>{t('Change details')}</button>
-          <RippleButton className="button-primary" disabled={busy} onClick={publish}>{t(busy ? 'Publishing…' : 'Publish profile')}</RippleButton>
+          <RippleButton className="button-primary" disabled={busy} onClick={publish}>{t(busy ? 'Please wait…' : editing ? 'Save changes' : 'Publish profile')}</RippleButton>
         </div>
       </div>}
       {error && <p className="form-error" role="alert">{t(error)}</p>}

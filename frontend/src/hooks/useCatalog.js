@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api/client'
 
-export default function useCatalog({ city, area, service, available }, revision) {
+export default function useCatalog({ city, area, service, available, enabled = true }, revision) {
   const [catalog, setCatalog] = useState(null)
   const [attempt, setAttempt] = useState(0)
   const [state, setState] = useState({ query: '', workers: [], error: '' })
@@ -17,6 +17,7 @@ export default function useCatalog({ city, area, service, available }, revision)
   }, [attempt])
 
   useEffect(() => {
+    if (!enabled) return
     const controller = new AbortController()
     function load() {
       api(`/workers?${query}`, { signal: controller.signal })
@@ -29,7 +30,7 @@ export default function useCatalog({ city, area, service, available }, revision)
       controller.abort()
       clearInterval(timer)
     }
-  }, [query, key])
+  }, [query, key, enabled])
 
-  return { catalog, ...state, loading: state.query !== key, retry: () => setAttempt((value) => value + 1) }
+  return { catalog, ...state, workers: enabled ? state.workers : [], loading: enabled && state.query !== key, retry: () => setAttempt((value) => value + 1) }
 }

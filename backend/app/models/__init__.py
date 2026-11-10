@@ -19,6 +19,14 @@ class Account(db.Model):
     verification = db.Column(db.String(8), nullable=False)
 
 
+class CustomerProfile(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("account.id"), nullable=False, unique=True)
+    name = db.Column(db.String(80), nullable=False)
+    city = db.Column(db.String(24), nullable=False)
+    area = db.Column(db.String(32), nullable=False)
+
+
 class _CodeChallenge:
     token = db.Column(db.String(32), nullable=False, unique=True)
     intent = db.Column(db.String(8), nullable=False)

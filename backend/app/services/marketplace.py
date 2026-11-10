@@ -1,13 +1,37 @@
 from io import BytesIO
+import math
 
 from flask import abort, request
 from sqlalchemy import func
 
 from ..extensions import db
 from ..main.data import AREAS, CITIES, SERVICES, WORKERS
-from ..models import Account, Booking, Message, Review, WorkerProfile
+from ..models import Account, Booking, CustomerProfile, Message, Review, WorkerProfile
 
 SERVICE_IDS = {service["id"] for service in SERVICES}
+NEARBY_RADIUS_KM = 5
+
+
+def distance_km(origin, target):
+    lat, lon = map(math.radians, origin)
+    other_lat, other_lon = map(math.radians, target)
+    a = math.sin((other_lat - lat) / 2) ** 2
+    a += math.cos(lat) * math.cos(other_lat) * math.sin((other_lon - lon) / 2) ** 2
+    return 12742 * math.asin(min(1, math.sqrt(a)))
+
+
+def customer_location(account):
+    profile = db.session.scalar(db.select(CustomerProfile).where(CustomerProfile.user_id == account.id))
+    if not profile:
+        abort(400, description="Save your neighbourhood in your profile to find nearby workers.")
+    return profile
+
+
+def nearby_distance(location, worker):
+    if location.city != worker.city:
+        return None
+    distance = distance_km(AREAS[location.city][location.area], AREAS[worker.city][worker.area])
+    return distance if distance <= NEARBY_RADIUS_KM else None
 AUDIO_LIMIT = 1_500_000
 AUDIO_TYPES = {"audio/webm", "audio/ogg", "audio/mp4", "audio/mpeg", "audio/wav"}
 

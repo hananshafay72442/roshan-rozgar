@@ -17,11 +17,15 @@ function openScrollSection(event, id) {
 
 export default function SiteHeader({ user, openAuth, openWorkspace }) {
   const { t } = useLanguage()
-  const links = useMemo(() => [
+  const links = useMemo(() => user?.role === 'worker' ? [
+    { href: '#top', label: t('My requests') },
+    { href: '#my-profile', label: t('Your public profile.') },
+  ] : [
     { href: '#workers', label: t('Find a worker') },
     { href: '#services', label: t('Explore trades'), onClick: (event) => openScrollSection(event, 'trade-rail') },
-    { href: '#how-it-works', label: t('How it works'), onClick: (event) => openScrollSection(event, 'scroll-drops') },
-  ], [t])
+    ...(!user ? [{ href: '#reviews', label: t('Reviews') },
+      { href: '#how-it-works', label: t('How it works'), onClick: (event) => openScrollSection(event, 'scroll-drops') }] : []),
+  ], [t, user])
   const actions = useMemo(() => {
     const onClick = (callback) => (event) => { event.preventDefault(); callback() }
     return user

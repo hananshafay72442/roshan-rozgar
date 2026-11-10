@@ -10,7 +10,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from . import main_bp
 from ..extensions import db
-from ..models import Account, EmailVerificationChallenge, VerificationChallenge, WorkerProfile
+from ..models import Account, CustomerProfile, EmailVerificationChallenge, VerificationChallenge, WorkerProfile
 from ..services.verification import (
     check_sms, digest, normalize_email, normalize_phone, reserve_quota, send_email, send_sms, verification_mode,
 )
@@ -53,12 +53,15 @@ def session_data():
     account_id = session.get("account_id")
     account = db.session.get(Account, account_id) if account_id else None
     profile = profile_for(account) if account and account.role == "worker" else None
+    customer = db.session.scalar(db.select(CustomerProfile).where(CustomerProfile.user_id == account.id)) if account and account.role == "customer" else None
     mode = verification_mode()
     return {
         "csrf_token": csrf,
         "user": {
-            "role": account.role, "profile_name": profile.name if profile else None,
-            "profile_complete": profile is not None, "verification": account.verification,
+            "id": account.id, "role": account.role, "profile_name": profile.name if profile else customer.name if customer else None,
+            "profile_complete": profile is not None if account.role == "worker" else customer is not None,
+            "location": {"city": customer.city, "area": customer.area} if customer else None,
+            "verification": account.verification,
         } if account else None,
         "demo_auth": mode == "demo",
         "verification_mode": mode,

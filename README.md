@@ -178,6 +178,26 @@ and [Groq structured text](https://console.groq.com/docs/structured-outputs).
 
 ## Running the checks
 
+### Role-specific home and profile editing
+
+Guests see the unchanged hero, service explanations and public reviews (sample
+reviews are labelled). Customer discovery and requests require sign-in. Workers
+see their job summary, public profile and availability controls rather than a
+customer worker catalog. Navigation follows the account role.
+
+Both roles can select **Edit your profile** from home or the workspace. Customers
+save a display name, city and neighbourhood. Workers edit their existing trade
+profile with the same guided steps; edits preserve bookings, availability,
+reviews, sign-in credentials and account ownership. Customer profiles use a new
+table created additively by `init-marketplace`; existing MySQL accounts remain.
+
+Discovery is restricted server-side to workers in the customer's saved city and
+within **5 km of the saved neighbourhood centre**. Query parameters cannot widen
+this boundary. Direct requests and worker reviews enforce the same boundary.
+Changing location requires saving the customer's profile. This is approximate
+neighbourhood-based proximity, not GPS or address verification. Existing job
+conversations remain accessible after moving neighbourhoods.
+
 ### Requirements review (10 November 2026)
 
 | PDF outcome | Implemented flow | Remaining live checks |

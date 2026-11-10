@@ -6,6 +6,7 @@ import SiteFooter from '../components/SiteFooter'
 import ThemeToggle from '../components/ThemeToggle'
 import AuthPanel from '../components/panels/AuthPanel'
 import ProfilePanel from '../components/panels/ProfilePanel'
+import CustomerProfilePanel from '../components/panels/CustomerProfilePanel'
 import RequestPanel from '../components/panels/RequestPanel'
 import ReviewsPanel from '../components/panels/ReviewsPanel'
 import WorkspacePanel from '../components/panels/WorkspacePanel'
@@ -36,6 +37,7 @@ export default function App() {
   }, [sessionAttempt])
 
   const openAuth = useCallback((mode, role, worker) => setPanel({ type: 'auth', mode, role, worker }), [])
+  const openProfile = () => setPanel({ type: user?.role === 'worker' ? 'profile' : 'customer-profile', editing: !!user?.profile_complete })
   const openWorkspace = useCallback(() => {
     setPanel({ type: user?.role === 'worker' && !user.profile_complete ? 'profile' : 'workspace' })
   }, [user])
@@ -43,12 +45,14 @@ export default function App() {
   function requestWorker(worker) {
     if (!user) openAuth('register', 'customer', worker)
     else if (user.role === 'worker') setPanel({ type: 'role', worker })
+    else if (!user.location) openProfile()
     else setPanel({ type: 'request', worker })
   }
 
   function authSuccess(data) {
     setSession(data)
     if (data.user.role === 'worker' && !data.user.profile_complete) setPanel({ type: 'profile' })
+    else if (data.user.role === 'customer' && !data.user.profile_complete) setPanel({ type: 'customer-profile' })
     else if (data.user.role === 'customer' && panel.worker) setPanel({ type: 'request', worker: panel.worker })
     else close()
   }
@@ -62,7 +66,8 @@ export default function App() {
     <>
       <a className="skip-link" href="#main">{t('Skip to content')}</a>
       <SiteHeader user={user} openAuth={openAuth} openWorkspace={openWorkspace} />
-      <HomePage revision={revision} user={user} call={call}
+      <HomePage key={user?.id || 'guest'} revision={revision} user={user} call={call} onEditProfile={openProfile}
+        onBrowse={() => user?.role === 'customer' ? openProfile() : openAuth('register', 'customer')}
         onOpenWorkspace={(job) => setPanel({ type: user?.role === 'worker' && !user.profile_complete ? 'profile' : 'workspace', job })} onRequest={requestWorker}
         onReviews={(worker) => setPanel({ type: 'reviews', worker })}
         onJoinWorker={() => {
@@ -79,9 +84,11 @@ export default function App() {
             <button type="button" className="button-secondary" onClick={() => setSessionAttempt((value) => value + 1)}>{t('Try again')}</button>
           </div> : <p role="status">{t('Getting your account ready…')}</p>}
         </Panel>)}
-      {panel?.type === 'profile' && <ProfilePanel call={call} voiceEnabled={session.voice_profile} onClose={close} onLogout={signedOut}
+      {panel?.type === 'customer-profile' && <CustomerProfilePanel call={call} onClose={close}
+        onSuccess={data => { setSession(data); refreshCatalog(); close() }} />}
+      {panel?.type === 'profile' && <ProfilePanel editing={panel.editing} call={call} voiceEnabled={session.voice_profile} onClose={close} onLogout={signedOut}
         onSuccess={(data) => { setSession(data); refreshCatalog(); setPanel({ type: 'workspace' }) }} />}
-      {panel?.type === 'workspace' && user && <WorkspacePanel user={user} initialJob={panel.job} call={call}
+      {panel?.type === 'workspace' && user && <WorkspacePanel user={user} initialJob={panel.job} call={call} onEditProfile={openProfile}
         onClose={() => { refreshCatalog(); close() }} onLogout={signedOut} onCatalogChange={refreshCatalog} />}
       {panel?.type === 'request' && <RequestPanel worker={panel.worker} call={call} onClose={close}
         onSuccess={(job) => setPanel({ type: 'workspace', job })} />}

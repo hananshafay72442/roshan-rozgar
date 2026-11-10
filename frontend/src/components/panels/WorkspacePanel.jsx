@@ -4,7 +4,7 @@ import Icon from '../Icon'
 import Panel from './Panel'
 import JobDetail, { statusLabels } from './JobDetail'
 
-export default function WorkspacePanel({ user, initialJob, call, onClose, onLogout, onCatalogChange }) {
+export default function WorkspacePanel({ user, initialJob, call, onClose, onLogout, onCatalogChange, onEditProfile }) {
   const { t } = useLanguage()
   const [jobs, setJobs] = useState(null)
   const [profile, setProfile] = useState(null)
@@ -64,6 +64,7 @@ export default function WorkspacePanel({ user, initialJob, call, onClose, onLogo
     <Panel title={t(worker ? 'Worker workspace.' : 'My requests.')} kicker={worker && user.profile_name ? user.profile_name : t(worker ? 'Your trade account' : 'Your customer account')}
       onClose={onClose} wide>
       <div className="workspace-toolbar">
+        <button type="button" className="text-button" onClick={onEditProfile}>{t('Edit your profile')}</button>
         {worker && profile && <label className="availability-filter">
           <input type="checkbox" checked={profile.taking_work} onChange={updateAvailability} disabled={busy} />
           <span>{t('Accept new jobs')}</span>

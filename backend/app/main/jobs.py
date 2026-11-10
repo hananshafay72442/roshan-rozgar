@@ -6,7 +6,7 @@ from . import main_bp
 from .auth import current_account, json_body, profile_for, session_data
 from ..extensions import db
 from ..models import Booking, Message, Review, WorkerProfile
-from ..services.marketplace import audio_file, message_input, validated_profile, worker_data
+from ..services.marketplace import audio_file, customer_location, nearby_distance, message_input, validated_profile, worker_data
 
 OPEN_STATES = {"requested", "quoted", "confirmed"}
 
@@ -89,6 +89,8 @@ def request_job():
     profile = db.session.get(WorkerProfile, worker_id)
     if not profile or (profile.seed_key and not current_app.config["SEED_SAMPLE_DATA"]):
         abort(404, description="This worker is no longer listed.")
+    if nearby_distance(customer_location(account), profile) is None:
+        abort(403, description="Choose a worker within 5 km of your saved neighbourhood.")
     if not profile.available:
         abort(409, description="This worker is unavailable now. Please choose another.")
     values = message_input()
