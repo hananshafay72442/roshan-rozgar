@@ -70,7 +70,7 @@ class Config:
             )
         elif tidb:
             raise ValueError("TiDB Cloud requires DB_SSL=1.")
-        self.SQLALCHEMY_ENGINE_OPTIONS = {"pool_pre_ping": True, "connect_args": connect_args}
+        self.SQLALCHEMY_ENGINE_OPTIONS = {"pool_pre_ping": True, "pool_recycle": 300, "connect_args": connect_args}
 
         self.SEED_SAMPLE_DATA = env_bool("SEED_SAMPLE_DATA")
         self.DEMO_VERIFICATION = env_bool("DEMO_VERIFICATION")

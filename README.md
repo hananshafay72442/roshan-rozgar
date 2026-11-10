@@ -190,8 +190,10 @@ and [Groq structured text](https://console.groq.com/docs/structured-outputs).
 
 Deployment smoke checks verified customer and worker email/password signup,
 logout and sign-in using new synthetic QA accounts. One initial worker sign-in
-returned HTTP 500; a repeat worker flow passed. This intermittent server error
-still needs deployment logs if it recurs. SMS reported unavailable before these
+returned HTTP 500; a repeat worker flow passed. Logs identified a dropped MySQL
+connection. Connections now recycle after five minutes and interruptions return
+a safe HTTP 503 with a retry message. Writes are never automatically replayed.
+SMS reported unavailable before these
 changes. Existing accounts, database schema and SMS settings were not changed.
 
 Create an empty local MySQL database named `roshan_test` and grant a test

@@ -1,4 +1,5 @@
 export const accountMessages = {
+  'The database connection was interrupted. Please try again.': ['Database ka rabta toot gaya. Dobara koshish karein.', 'ڈیٹابیس کا رابطہ ٹوٹ گیا۔ دوبارہ کوشش کریں۔'],
   'Confirm password': ['Password dobara likhein', 'پاس ورڈ دوبارہ لکھیں'],
   'Show password': ['Password dikhayein', 'پاس ورڈ دکھائیں'],
   'Passwords do not match.': ['Dono password aik jaisay nahi hain.', 'دونوں پاس ورڈ ایک جیسے نہیں ہیں۔'],

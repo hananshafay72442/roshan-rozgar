@@ -6,6 +6,7 @@ from tempfile import NamedTemporaryFile
 from flask import Flask, abort, send_from_directory
 from dotenv import load_dotenv
 from werkzeug.exceptions import HTTPException
+from sqlalchemy.exc import OperationalError
 
 from .extensions import db, migrate
 
@@ -45,6 +46,16 @@ def create_app(config_class=None):
 
     from .commands import register_commands
     register_commands(app)
+
+    @app.errorhandler(OperationalError)
+    def handle_database_unavailable(error):
+        db.session.rollback()
+        # Do not replay writes: a dropped connection can have an unknown commit result.
+        response = app.json.response({"error": "The database connection was interrupted. Please try again."})
+        response.status_code = 503
+        response.headers["Retry-After"] = "3"
+        response.headers["Cache-Control"] = "no-store"
+        return response
 
     @app.errorhandler(HTTPException)
     def handle_http_error(error):
