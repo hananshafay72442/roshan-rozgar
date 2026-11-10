@@ -127,8 +127,11 @@ main:focus { outline: none; }
 .language-options button:is([lang='en'], [lang='ur-Latn-PK']) { font-family: var(--font-latin); }
 .language-options button:is(:hover, [aria-pressed='true']) { background: var(--orange-soft); color: var(--accent-ink); }
 
-.button-primary.ripple-button {
+.button-primary, .button-primary.ripple-button {
   --ripple-hover-text: var(--on-orange);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-height: 52px;
   padding: 0 19px;
   border: 1px solid transparent;
@@ -138,6 +141,7 @@ main:focus { outline: none; }
   color: var(--on-orange);
   background: var(--orange);
 }
+.button-primary:not(.ripple-button, :disabled):hover { background: var(--orange-hover); }
 .button-primary.ripple-button .ripple-button__fill { background: var(--orange-hover); }
 .button-primary.ripple-button:hover, .button-primary.ripple-button:focus-visible { color: var(--on-orange); }
 .button-secondary, .button-small, .icon-button {
