@@ -94,7 +94,7 @@ class MarketplaceTests(unittest.TestCase):
             db.session.get(model, item_id).moderation = "approved"
             db.session.commit()
 
-    def test_admin_can_review_profiles_and_requests_and_only_admin_sees_contacts(self):
+    def test_admin_only_reviews_worker_profiles(self):
         worker, worker_id = self.new_worker(approve=False)
         customer = self.verified("customer", 2)
         self.assertEqual(customer.get("/api/workers").json["total"], 0)
@@ -113,7 +113,7 @@ class MarketplaceTests(unittest.TestCase):
         self.assertEqual(result.json["user"]["role"], "admin")
         queue = admin.get("/api/admin/review").json
         self.assertEqual(queue["profiles"][0]["phone"], "+923001000001")
-        self.assertEqual(queue["requests"], [])
+        self.assertNotIn("requests", queue)
         decision = {"decision": "approved"}
         endpoint = f"/api/admin/review/profiles/{worker_id}"
         self.assertEqual(customer.patch(endpoint, json=decision, headers=self.headers(customer)).status_code, 403)
@@ -123,18 +123,50 @@ class MarketplaceTests(unittest.TestCase):
         request = self.post(customer, "/jobs", {"worker_id": worker_id, "text": "Please check the wiring."})
         self.assertEqual(request.status_code, 201, request.json)
         job = request.json["job"]
-        self.assertEqual(job["moderation"], "pending")
-        self.assertEqual(self.post(worker, f"/jobs/{job['id']}/quote", {"quote_pkr": 900}).status_code, 409)
-        entry = admin.get("/api/admin/review").json["requests"][0]
-        self.assertEqual(entry["phone"], "+923001000002")
-        self.assertEqual(entry["text"], "Please check the wiring.")
-        url = f"/api/admin/review/requests/{job['id']}"
-        self.assertEqual(admin.patch(url, json=decision, headers=self.headers(admin)).status_code, 200)
-        self.assertEqual(admin.patch(url, json=decision, headers=self.headers(admin)).status_code, 409)
+        self.assertEqual(job["state"], "requested")
+        self.assertEqual(admin.patch(f"/api/admin/review/requests/{job['id']}", json=decision,
+                                     headers=self.headers(admin)).status_code, 404)
+        self.assertEqual(admin.get(f"/api/jobs/{job['id']}").status_code, 404)
         self.assertEqual(self.post(worker, f"/jobs/{job['id']}/quote", {"quote_pkr": 900}).status_code, 200)
-        self.assertEqual(self.post(worker, f"/jobs/{job['id']}/messages", {"text": "A follow-up."}).status_code, 201)
-        entries = admin.get("/api/admin/review?status=approved").json["requests"]
-        self.assertEqual([(item["id"], item["text"]) for item in entries], [(job["id"], "Please check the wiring.")])
+
+    def test_bargaining_reopens_legacy_pending_requests_and_confirms_only_current_offers(self):
+        worker, worker_id = self.new_worker()
+        customer = self.verified("customer", 2)
+        request = self.post(customer, "/jobs", {"worker_id": worker_id, "text": "Repair the wiring."})
+        path = f"/jobs/{request.json['job']['id']}"
+        with self.app.app_context():
+            db.session.get(Booking, request.json["job"]["id"]).moderation = "pending"
+            db.session.commit()
+
+        self.assertEqual(self.post(customer, f"{path}/quote", {"quote_pkr": 900}).status_code, 403)
+        self.assertEqual(self.post(customer, f"{path}/decline").status_code, 403)
+        self.assertEqual(self.post(worker, f"{path}/quote", {"quote_pkr": 900, "previous_quote_pkr": None}).status_code, 200)
+        self.assertEqual(self.post(worker, f"{path}/accept", {"quote_pkr": 900}).status_code, 409)
+        self.assertEqual(self.post(customer, f"{path}/counter", {
+            "quote_pkr": 800, "previous_quote_pkr": 700,
+        }).status_code, 409)
+        lower = self.post(customer, f"{path}/counter", {"quote_pkr": 800, "previous_quote_pkr": 900})
+        self.assertEqual(lower.json["state"], "countered")
+        self.assertEqual(self.post(customer, f"{path}/accept", {"quote_pkr": 800}).status_code, 409)
+        higher = self.post(worker, f"{path}/quote", {"quote_pkr": 1000, "previous_quote_pkr": 800})
+        self.assertEqual(higher.json["state"], "quoted")
+        higher_again = self.post(customer, f"{path}/counter", {"quote_pkr": 1100, "previous_quote_pkr": 1000})
+        self.assertEqual(higher_again.json["state"], "countered")
+        self.assertEqual(self.post(worker, f"{path}/accept", {"quote_pkr": 800}).status_code, 409)
+        self.assertEqual(self.post(worker, f"{path}/accept", {"quote_pkr": 1100}).json["state"], "confirmed")
+        job = customer.get(f"/api{path}").json["job"]
+        self.assertEqual((job["state"], job["quote_pkr"]), ("confirmed", 1100))
+        self.assertEqual(self.post(worker, f"{path}/decline").status_code, 409)
+
+    def test_worker_can_decline_unbooked_request(self):
+        worker, worker_id = self.new_worker()
+        customer = self.verified("customer", 2)
+        request = self.post(customer, "/jobs", {"worker_id": worker_id, "text": "Check this outlet."})
+        path = f"/jobs/{request.json['job']['id']}"
+        self.assertEqual(self.post(worker, f"{path}/decline").json["state"], "declined")
+        self.assertEqual(customer.get(f"/api{path}").json["job"]["state"], "declined")
+        self.assertEqual(self.post(worker, f"{path}/quote", {"quote_pkr": 900}).status_code, 409)
+        self.assertTrue(worker.get("/api/profile").json["profile"]["available"])
 
     def test_local_code_requires_csrf_is_single_use_and_limits_guesses(self):
         client = self.app.test_client()
@@ -330,7 +362,6 @@ class MarketplaceTests(unittest.TestCase):
             result = self.post(customer, "/jobs", {"worker_id": worker_id, "text": "Switch needs fixing."})
             self.assertEqual(result.status_code, 201, result.json)
             jobs.append(result.json["job"]["id"])
-            self.approve(Booking, jobs[-1])
         for job in jobs:
             self.assertEqual(self.post(worker, f"/jobs/{job}/quote", {"quote_pkr": 1250}).status_code, 200)
         self.assertEqual(self.post(customers[0], f"/jobs/{jobs[0]}/accept", {"quote_pkr": 1100}).status_code, 409)
@@ -368,7 +399,6 @@ class MarketplaceTests(unittest.TestCase):
         }, headers=self.headers(customer))
         self.assertEqual(response.status_code, 201, response.json)
         job = response.json["job"]["id"]
-        self.approve(Booking, job)
         detail = worker.get(f"/api/jobs/{job}").json
         url = detail["messages"][0]["audio_url"]
         with worker.get(url) as playback:

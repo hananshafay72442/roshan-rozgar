@@ -21,7 +21,7 @@ export default function AccountHome({ user, call, revision, onOpen, onEditProfil
     const timer = setInterval(() => { if (!document.hidden) load() }, 6500)
     return () => { controller.abort(); clearInterval(timer) }
   }, [call, revision, attempt])
-  const active = jobs?.filter(({ state }) => ['requested', 'quoted', 'confirmed'].includes(state)) || []
+  const active = jobs?.filter(({ state, moderation }) => moderation !== 'rejected' && ['requested', 'quoted', 'countered', 'confirmed'].includes(state)) || []
   const reviewable = !worker ? jobs?.filter(({ state, reviewed }) => state === 'completed' && !reviewed) || [] : []
   const latest = [...active, ...reviewable].slice(0, 3)
   return <div className="account-home">

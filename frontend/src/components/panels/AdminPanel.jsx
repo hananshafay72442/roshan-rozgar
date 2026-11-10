@@ -33,10 +33,10 @@ export default function AdminPanel({ call, onClose, onLogout }) {
     finally { setBusy(false) }
   }
 
-  function actions(kind, id) {
+  function actions(id) {
     return status === 'pending' && <div className="panel-actions">
       {['approved', 'rejected'].map(decision => <button key={decision} type="button" className="button-secondary"
-        disabled={busy} onClick={() => act(`/admin/review/${kind}/${id}`, { method: 'PATCH', data: { decision } })}>
+        disabled={busy} onClick={() => act(`/admin/review/profiles/${id}`, { method: 'PATCH', data: { decision } })}>
         {t(decision === 'approved' ? 'Approve' : 'Reject')}
       </button>)}
     </div>
@@ -65,18 +65,9 @@ export default function AdminPanel({ call, onClose, onLogout }) {
           <strong dir="auto">{item.name}</strong>
           <p>{item.service} · {item.area}, {item.city} · {t('{years} years', { years: item.experience })}</p>
           <Phone number={item.phone} />
-          {actions('profiles', item.id)}
+          {actions(item.id)}
         </article>)}
-        <h3>{t('Job requests')}</h3>
-        {queue.requests.map(item => <article key={item.id} className="admin-review-item">
-          <strong>{t('Request {id}', { id: item.id })}</strong>
-          <p>{item.customer || t('Customer')} · <Phone number={item.phone} /></p>
-          <p>{item.worker} · <Phone number={item.worker_phone} /></p>
-          <p dir="auto">{item.text}</p>
-          {item.audio && <audio src={item.audio} controls preload="none" />}
-          {actions('requests', item.id)}
-        </article>)}
-        {!queue.profiles.length && !queue.requests.length && <p>{t('No items in this queue.')}</p>}
+        {!queue.profiles.length && <p>{t('No items in this queue.')}</p>}
       </>}
     </div>
   </Panel>
