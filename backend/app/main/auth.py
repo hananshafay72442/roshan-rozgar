@@ -10,7 +10,7 @@ from sqlalchemy.exc import IntegrityError
 from . import main_bp
 from ..extensions import db
 from ..models import Account, VerificationChallenge, WorkerProfile
-from ..services.verification import check_sms, digest, normalize_phone, reserve_quota, send_sms, twilio_available
+from ..services.verification import check_sms, digest, normalize_phone, reserve_quota, send_sms, verification_mode
 
 CODE_LIFETIME = 600
 CODE_ATTEMPTS = 5
@@ -43,13 +43,15 @@ def session_data():
     account_id = session.get("account_id")
     account = db.session.get(Account, account_id) if account_id else None
     profile = profile_for(account) if account and account.role == "worker" else None
+    mode = verification_mode()
     return {
         "csrf_token": csrf,
         "user": {
             "role": account.role, "profile_name": profile.name if profile else None,
             "profile_complete": profile is not None, "verification": account.verification,
         } if account else None,
-        "demo_auth": current_app.config["DEMO_VERIFICATION"] and not twilio_available(),
+        "demo_auth": mode == "demo",
+        "verification_mode": mode,
         "demo_data": current_app.config["SEED_SAMPLE_DATA"],
         "voice_profile": bool(current_app.config["GEMINI_API_KEY"]),
     }
@@ -78,9 +80,9 @@ def issue_code():
     if intent not in ("register", "login") or (intent == "register" and role not in ("customer", "worker")):
         abort(400, description="Choose to sign in or pick an account type to register.")
 
-    method = "sms" if twilio_available() else "demo"
-    if method == "demo" and not current_app.config["DEMO_VERIFICATION"]:
-        abort(503, description="Phone verification is not configured on this server.")
+    method = verification_mode()
+    if method == "unavailable":
+        abort(503, description="SMS sign-in is unavailable right now. Please try again later.")
 
     reserve_quota("issue-ip", request.remote_addr or "unknown", 30, 600)
     now = int(time.time())

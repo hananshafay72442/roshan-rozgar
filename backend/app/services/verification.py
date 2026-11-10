@@ -58,13 +58,37 @@ def twilio_available():
     return bool(current_app.config["TWILIO_VERIFY_SERVICE_SID"])
 
 
-def twilio_request(action, values):
+def verification_mode():
+    if twilio_available():
+        return "sms"
+    return "demo" if current_app.config["DEMO_VERIFICATION"] else "unavailable"
+
+
+def twilio_connection():
     config = current_app.config
-    service = config["TWILIO_VERIFY_SERVICE_SID"]
+    url = f'https://verify.twilio.com/v2/Services/{config["TWILIO_VERIFY_SERVICE_SID"]}'
+    return url, (config["TWILIO_ACCOUNT_SID"], config["TWILIO_AUTH_TOKEN"])
+
+
+def check_sms_service():
+    if not twilio_available():
+        raise RuntimeError("Set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_VERIFY_SERVICE_SID in the backend environment.")
+    url, auth = twilio_connection()
+    try:
+        response = httpx.get(url, auth=auth, timeout=8)
+        response.raise_for_status()
+        service = response.json()
+    except (httpx.HTTPError, ValueError):
+        raise RuntimeError("Could not verify the Twilio service. Check the credentials, Verify service SID, and network access.") from None
+    if not isinstance(service, dict) or service.get("code_length") != 6:
+        raise RuntimeError("Set the Twilio Verify service's code length to six digits.")
+
+
+def twilio_request(action, values):
+    url, auth = twilio_connection()
     try:
         response = httpx.post(
-            f"https://verify.twilio.com/v2/Services/{service}/{action}",
-            auth=(config["TWILIO_ACCOUNT_SID"], config["TWILIO_AUTH_TOKEN"]),
+            f"{url}/{action}", auth=auth,
             data=values, timeout=8,
         )
         if action == "VerificationCheck" and response.status_code in {400, 404}:

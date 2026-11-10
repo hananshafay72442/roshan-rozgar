@@ -23,12 +23,14 @@ const paths = {
   calendar: 'M5 5h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Zm2-2v4m10-4v4M3 10h18m-12 5 2 2 4-4',
   chat: 'M20 11a8 8 0 0 1-8 8H4l1.8-3.6A8 8 0 1 1 20 11Zm-12 0h8m-8 3h5',
   stop: 'M7 7h10v10H7z',
+  globe: 'M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0ZM2 12h20M12 2a15 15 0 0 1 0 20 15 15 0 0 1 0-20Z',
   sun: 'M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5M17 12a5 5 0 1 1-10 0 5 5 0 0 1 10 0Z',
 }
 
-export default function Icon({ name, size = 22, ...props }) {
+export default function Icon({ name, size = 22, className = '', ...props }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      className={`${['arrow', 'left', 'chevron'].includes(name) ? 'directional-icon ' : ''}${className}`.trim()}
       stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"
       strokeLinejoin="round" aria-hidden="true" {...props}>
       <path d={paths[name] || paths.tool} />

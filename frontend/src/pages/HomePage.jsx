@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useLanguage } from '../i18n/LanguageProvider'
 import useCatalog from '../hooks/useCatalog'
 import Icon from '../components/Icon'
 import HeroVisual from '../components/HeroVisual/HeroVisual'
@@ -22,6 +23,7 @@ const fallbackCities = ['Islamabad', 'Rawalpindi']
 const noServices = []
 
 export default function HomePage({ revision, onRequest, onReviews, onJoinWorker }) {
+  const { t } = useLanguage()
   const [city, setCity] = useState('Islamabad')
   const [area, setArea] = useState('')
   const [service, setService] = useState('')
@@ -38,12 +40,12 @@ export default function HomePage({ revision, onRequest, onReviews, onJoinWorker 
     <main id="main" tabIndex={-1}>
       <section className="hero container" id="top" data-hero-pointer-area aria-labelledby="hero-title">
         <div className="hero-copy">
-          <p className="hero-locale"><Icon name="pin" size={17} /> Islamabad &amp; Rawalpindi</p>
-          <h1 id="hero-title">Skilled hands.<br /><span>Closer to home.</span></h1>
-          <p className="hero-description">Find local electricians, plumbers and other tradespeople. See who’s free, talk through the job, and book at a price you agree on.</p>
+          <p className="hero-locale"><Icon name="pin" size={17} /> {t('Islamabad & Rawalpindi')}</p>
+          <h1 id="hero-title">{t('Skilled hands.')}<br /><span>{t('Closer to home.')}</span></h1>
+          <p className="hero-description">{t('Find local electricians, plumbers and other tradespeople. See who’s free, talk through the job, and book at a price you agree on.')}</p>
           <div className="hero-actions">
-            <RippleButton href="#workers" className="button-primary">Find a worker</RippleButton>
-            <a className="button-secondary" href="#for-workers">I’m a skilled worker <Icon name="chevron" size={17} /></a>
+            <RippleButton href="#workers" className="button-primary">{t('Find a worker')}</RippleButton>
+            <a className="button-secondary" href="#for-workers">{t('I’m a skilled worker')} <Icon name="chevron" size={17} /></a>
           </div>
           <p className="hero-urdu" lang="ur" dir="rtl">ہنر مند لوگ، آپ کے قریب</p>
         </div>
@@ -51,10 +53,10 @@ export default function HomePage({ revision, onRequest, onReviews, onJoinWorker 
       </section>
 
       <div className="container">
-        <ul className="value-strip" aria-label="How Roshan Rozgar helps">
+        <ul className="value-strip" aria-label={t('How Roshan Rozgar helps')}>
           {reasons.map(({ icon, title, text }) => <li key={title}>
             <span className="value-icon"><Icon name={icon} size={24} /></span>
-            <span><strong>{title}</strong><small>{text}</small></span>
+            <span><strong>{t(title)}</strong><small>{t(text)}</small></span>
           </li>)}
         </ul>
       </div>
@@ -63,59 +65,59 @@ export default function HomePage({ revision, onRequest, onReviews, onJoinWorker 
 
       <section className="container worker-section" id="workers" aria-labelledby="workers-title">
         <div className="section-heading">
-          <div><p className="eyebrow">02 <span /> Find someone nearby</p><h2 id="workers-title">Local workers.</h2></div>
-          <p className="section-deck">Choose your neighbourhood to see who’s closest and ready to help.</p>
+          <div><p className="eyebrow">02 <span /> {t('Find someone nearby')}</p><h2 id="workers-title">{t('Local workers.')}</h2></div>
+          <p className="section-deck">{t('Choose your neighbourhood to see who’s closest and ready to help.')}</p>
         </div>
-        <div className="worker-filters" aria-label="Filter local workers">
-          <label className="filter-field"><span>City</span>
+        <div className="worker-filters" aria-label={t('Filter local workers')}>
+          <label className="filter-field"><span>{t('City')}</span>
             <select value={city} onChange={(event) => { setCity(event.target.value); setArea('') }}>
-              {(catalog?.cities || fallbackCities).map((name) => <option key={name}>{name}</option>)}
+              {(catalog?.cities || fallbackCities).map((name) => <option key={name} value={name}>{t(name)}</option>)}
             </select>
           </label>
-          <label className="filter-field"><span>Neighbourhood</span>
+          <label className="filter-field"><span>{t('Neighbourhood')}</span>
             <select value={area} onChange={(event) => setArea(event.target.value)}>
-              <option value="">Any neighbourhood</option>
-              {catalog?.areas?.[city]?.map((name) => <option key={name}>{name}</option>)}
+              <option value="">{t('Any neighbourhood')}</option>
+              {catalog?.areas?.[city]?.map((name) => <option key={name} value={name}>{t(name)}</option>)}
             </select>
           </label>
-          <label className="filter-field"><span>Trade</span>
+          <label className="filter-field"><span>{t('Trade')}</span>
             <select value={service} onChange={(event) => setService(event.target.value)}>
-              <option value="">All trades</option>
-              {services.map(({ id, name, urdu }) => <option key={id} value={id}>{name} · {urdu}</option>)}
+              <option value="">{t('All trades')}</option>
+              {services.map(({ id, name }) => <option key={id} value={id}>{t(name)}</option>)}
             </select>
           </label>
           <label className="availability-filter">
             <input type="checkbox" checked={available} onChange={(event) => setAvailable(event.target.checked)} />
-            <span>Available now</span>
+            <span>{t('Available now')}</span>
           </label>
         </div>
-        {loading ? <p className="catalog-message" role="status">Finding workers nearby…</p>
+        {loading ? <p className="catalog-message" role="status">{t('Finding workers nearby…')}</p>
           : error || !catalog ? <div className="catalog-message" role="alert">
-            <p>{error || 'The trade list couldn’t load. Please try again.'}</p>
-            <button className="button-secondary" type="button" onClick={retry}>Try again</button>
+            <p>{t(error || 'The trade list couldn’t load. Please try again.')}</p>
+            <button className="button-secondary" type="button" onClick={retry}>{t('Try again')}</button>
           </div> : <>
             <p className="catalog-summary" aria-live="polite">
-              <strong>{workers.length} {workers.length === 1 ? 'worker' : 'workers'}</strong> in {city}
-              {area && <span> · Distances are approximate from {area}</span>}
+              <strong>{t(workers.length === 1 ? '{count} worker' : '{count} workers', { count: workers.length })}</strong> {t('in {city}', { city: t(city) })}
+              {area && <span> · {t('Distances are approximate from {area}', { area: t(area) })}</span>}
             </p>
             {workers.length ? <div className="worker-grid">
               {workers.map((worker) => <WorkerCard key={worker.id} worker={worker}
                 service={services.find(({ id }) => id === worker.service_id)} onRequest={onRequest} onReviews={onReviews} />)}
-            </div> : <p className="catalog-message">No workers match your filters. Try a different trade or include workers who are off duty.</p>}
+            </div> : <p className="catalog-message">{t('No workers match your filters. Try a different trade or include workers who are off duty.')}</p>}
           </>}
       </section>
 
-      <ScrollDrops className="how-section" id="how-it-works" count={26} aria-labelledby="how-title">
+      <ScrollDrops className="how-section" id="how-it-works" count={28} startAt="[data-drops-start]" aria-labelledby="how-title">
         <div className="container how-inner">
           <div>
-            <p className="eyebrow">03 <span /> How it works</p>
-            <h2 id="how-title">Good work,<br />step by step.</h2>
-            <p className="section-deck">A simple way to go from a repair you need to a job well done.</p>
+            <p className="eyebrow" data-drops-start>03 <span /> {t('How it works')}</p>
+            <h2 id="how-title">{t('Good work,')}<br />{t('step by step.')}</h2>
+            <p className="section-deck">{t('A simple way to go from a repair you need to a job well done.')}</p>
           </div>
           <ol className="work-steps">
             {steps.map((step, index) => <li key={step.title}>
               <span className="step-number">0{index + 1}</span>
-              <div><h3>{step.title}</h3><p>{step.text}</p></div>
+              <div><h3>{t(step.title)}</h3><p>{t(step.text)}</p></div>
             </li>)}
           </ol>
         </div>
@@ -124,15 +126,15 @@ export default function HomePage({ revision, onRequest, onReviews, onJoinWorker 
       <section className="container" id="for-workers" aria-labelledby="worker-intro-title">
         <div className="worker-intro">
           <div>
-            <p className="eyebrow">For tradespeople</p>
-            <h2 id="worker-intro-title">Let your work speak.</h2>
-            <p>Set up your profile by voice, tell neighbours when you’re free, and quote jobs in your area.</p>
-            <RippleButton className="button-primary" onClick={onJoinWorker}>Join as a worker</RippleButton>
+            <p className="eyebrow">{t('For tradespeople')}</p>
+            <h2 id="worker-intro-title">{t('Let your work speak.')}</h2>
+            <p>{t('Set up your profile by voice, tell neighbours when you’re free, and quote jobs in your area.')}</p>
+            <RippleButton className="button-primary" onClick={onJoinWorker}>{t('Join as a worker')}</RippleButton>
           </div>
           <div className="worker-callout">
             <span className="worker-callout-icon"><Icon name="mic" size={52} /></span>
             <p lang="ur" dir="rtl">ہنر آپ کا، روزگار روشن</p>
-            <span>Build a profile in your own words</span>
+            <span>{t('Build a profile in your own words')}</span>
           </div>
         </div>
       </section>

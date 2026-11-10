@@ -1,8 +1,10 @@
 import { useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
+import { useLanguage } from '../i18n/LanguageProvider'
 import Icon from './Icon'
 
 export default function ThemeToggle() {
+  const { t } = useLanguage()
   const [dark, setDark] = useState(() => document.documentElement.dataset.theme === 'dark')
   const inFlight = useRef(false)
 
@@ -46,8 +48,8 @@ export default function ThemeToggle() {
   }
 
   return (
-    <button className="theme-toggle" type="button" aria-label={dark ? 'Switch to light theme' : 'Switch to dark theme'}
-      title={dark ? 'Light theme' : 'Dark theme'} onClick={toggle}>
+    <button className="theme-toggle" type="button" aria-label={t(dark ? 'Switch to light theme' : 'Switch to dark theme')}
+      title={t(dark ? 'Switch to light theme' : 'Switch to dark theme')} onClick={toggle}>
       <Icon name={dark ? 'sun' : 'moon'} size={22} />
     </button>
   )

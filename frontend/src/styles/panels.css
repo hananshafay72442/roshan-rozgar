@@ -85,7 +85,7 @@ body:has(dialog[open]) { overflow: hidden; }
 
 .workspace-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 7px 12px; border-block: 1px solid var(--line); margin-bottom: 12px; }
 .workspace-toolbar .availability-filter { padding-inline: 0; }
-.workspace-toolbar > button { margin-left: auto; }
+.workspace-toolbar > button { margin-inline-start: auto; }
 .workspace-account { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: .81rem; font-weight: 730; }
 .workspace-error { display: grid; justify-items: start; gap: 6px; margin-bottom: 10px; }
 .workspace-layout { display: grid; grid-template-columns: minmax(160px, .78fr) minmax(0, 2fr); gap: 15px; }
@@ -139,3 +139,6 @@ body:has(dialog[open]) { overflow: hidden; }
   .quote-form { align-items: stretch; flex-direction: column; }
   .quote-form .ripple-button { align-self: flex-start; }
 }
+
+:root[dir='rtl'] :is(.panel-heading h2, .form-title, .job-head h3) { line-height: 1.65; letter-spacing: normal; }
+:root[dir='rtl'] :is(.panel button, .form-field, .panel-heading .eyebrow) { line-height: 1.85; }

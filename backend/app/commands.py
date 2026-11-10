@@ -4,6 +4,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from .extensions import db
 from .services.ai import AIServiceError, generate_text
+from .services.verification import check_sms_service
 
 
 def register_commands(app):
@@ -44,3 +45,12 @@ def register_commands(app):
         except AIServiceError as error:
             raise click.ClickException(str(error)) from None
         click.echo(f"Gemini connection succeeded ({app.config['GEMINI_MODEL']}).")
+
+    @app.cli.command("check-sms")
+    def check_sms():
+        """Check Twilio Verify service access without sending an SMS."""
+        try:
+            check_sms_service()
+        except RuntimeError as error:
+            raise click.ClickException(str(error)) from None
+        click.echo("Twilio Verify service is reachable and uses six-digit codes.")

@@ -33,12 +33,13 @@ function createDrops(count, seed) {
 
 /**
  * Scroll-linked gradient drops. Optional children stay above the background.
- * The section supplies two viewport heights of scroll space automatically.
+ * The stage pins at the selected heading until the drops finish.
  */
 export default function ScrollDrops({
   children,
   count = 40,
   seed = 11,
+  startAt,
   className = "",
   style,
   ...sectionProps
@@ -52,19 +53,24 @@ export default function ScrollDrops({
 
   useGSAP(
     () => {
-      const elements = sectionRef.current.querySelectorAll(".scroll-drops__drop");
-      if (!elements.length) return;
+      const section = sectionRef.current;
+      const stage = stageRef.current;
+      const anchor = startAt ? section.querySelector(startAt) : section;
+      const elements = section.querySelectorAll(".scroll-drops__drop");
+      if (!anchor || !elements.length) return;
 
       const media = gsap.matchMedia();
 
-      media.add("(prefers-reduced-motion: no-preference)", () => {
+      media.add("(min-height: 520px) and (prefers-reduced-motion: no-preference)", () => {
         // Position, stretching, and fading share one reversible timeline.
         const timeline = gsap.timeline({
           scrollTrigger: {
-            trigger: sectionRef.current,
-            start: "top 90%",
-            end: "bottom bottom",
-            scrub: 1,
+            id: "scroll-drops",
+            trigger: anchor,
+            pin: stage,
+            start: "center center",
+            end: () => `+=${Math.round(Math.min(490, Math.max(260, stage.clientHeight * 0.9)))}`,
+            scrub: true,
             invalidateOnRefresh: true,
           },
           defaults: { ease: "power2.inOut", stagger: 0.008 },
@@ -74,7 +80,7 @@ export default function ScrollDrops({
           elements,
           { y: 0, "--drop-stretch": 1 },
           {
-            y: () => -stageRef.current.clientHeight,
+            y: () => -stage.clientHeight,
             "--drop-stretch": (index) => drops[index].stretch,
             duration: 1,
           },
@@ -89,16 +95,16 @@ export default function ScrollDrops({
         );
 
         // Recalculate travel when a containing layout changes the stage height.
-        let height = stageRef.current.clientHeight;
+        let height = stage.clientHeight;
         let refreshFrame;
         const observer = new ResizeObserver(() => {
-          const nextHeight = stageRef.current?.clientHeight;
+          const nextHeight = stage.clientHeight;
           if (!nextHeight || nextHeight === height) return;
           height = nextHeight;
           cancelAnimationFrame(refreshFrame);
           refreshFrame = requestAnimationFrame(() => ScrollTrigger.refresh());
         });
-        observer.observe(stageRef.current);
+        observer.observe(stage);
 
         return () => {
           observer.disconnect();
@@ -108,7 +114,7 @@ export default function ScrollDrops({
 
       return () => media.revert();
     },
-    { scope: sectionRef, dependencies: [drops], revertOnUpdate: true },
+    { scope: sectionRef, dependencies: [drops, startAt], revertOnUpdate: true },
   );
 
   return (

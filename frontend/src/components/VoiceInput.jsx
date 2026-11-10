@@ -1,9 +1,11 @@
+import { useLanguage } from '../i18n/LanguageProvider'
 import { useEffect, useRef, useState } from 'react'
 import Icon from './Icon'
 
 const recordingTypes = ['audio/webm;codecs=opus', 'audio/mp4', 'audio/ogg;codecs=opus']
 
 export default function VoiceInput({ value, onChange, label = 'Record a voice note', seconds = 40, disabled = false }) {
+  const { t } = useLanguage()
   const [status, setStatus] = useState('idle')
   const [error, setError] = useState('')
   const [preview, setPreview] = useState(null)
@@ -83,17 +85,17 @@ export default function VoiceInput({ value, onChange, label = 'Record a voice no
   return (
     <div className="voice-input">
       {value ? <div className="voice-preview">
-        {preview?.blob === value && <audio src={preview.url} controls aria-label="Preview your voice note" />}
-        <button className="icon-button" type="button" onClick={() => { setPreview(null); onChange(null) }} aria-label="Remove recording" disabled={disabled}><Icon name="close" size={16} /></button>
+        {preview?.blob === value && <audio src={preview.url} controls aria-label={t('Preview your voice note')} />}
+        <button className="icon-button" type="button" onClick={() => { setPreview(null); onChange(null) }} aria-label={t('Remove recording')} disabled={disabled}><Icon name="close" size={16} /></button>
       </div> : <button type="button" className="button-secondary voice-button"
         onClick={status === 'recording' ? () => capture.current?.recorder.stop() : start}
         disabled={!supported || disabled || status === 'opening'}>
         <Icon name={status === 'recording' ? 'stop' : 'mic'} size={18} />
-        {status === 'recording' ? 'Stop recording' : status === 'opening' ? 'Opening microphone…' : label}
+        {t(status === 'recording' ? 'Stop recording' : status === 'opening' ? 'Opening microphone…' : label)}
       </button>}
-      {status === 'recording' && <span className="recording-status" role="status">Recording · Up to {seconds} seconds</span>}
-      {!supported && <p className="hint">Recording requires a browser with microphone access on HTTPS or localhost.</p>}
-      {error && <p className="form-error" role="alert">{error}</p>}
+      {status === 'recording' && <span className="recording-status" role="status">{t('Recording · Up to {seconds} seconds', { seconds })}</span>}
+      {!supported && <p className="hint">{t('Recording requires a browser with microphone access on HTTPS or localhost.')}</p>}
+      {error && <p className="form-error" role="alert">{t(error)}</p>}
     </div>
   )
 }

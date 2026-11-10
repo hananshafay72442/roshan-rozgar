@@ -1,3 +1,4 @@
+import { useLanguage } from '../../i18n/LanguageProvider'
 import { useEffect, useState } from 'react'
 import { profileAudio } from '../../api/audio'
 import Icon from '../Icon'
@@ -16,6 +17,7 @@ const steps = [
 ]
 
 export default function ProfilePanel({ voiceEnabled, call, onSuccess, onClose, onLogout }) {
+  const { t } = useLanguage()
   const [catalog, setCatalog] = useState(null)
   const [attempt, setAttempt] = useState(0)
   const [loadError, setLoadError] = useState('')
@@ -71,12 +73,12 @@ export default function ProfilePanel({ voiceEnabled, call, onSuccess, onClose, o
   const trade = catalog?.services.find(({ id }) => profile.service_id === id)
 
   return (
-    <Panel title="Set up your trade profile." kicker="Worker onboarding" onClose={onClose}>
-      {!catalog && (loadError ? <div role="alert"><p className="form-error">{loadError}</p>
-        <button type="button" className="button-secondary" onClick={() => { setLoadError(''); setAttempt((value) => value + 1) }}>Try again</button>
-      </div> : <p role="status">Loading trades and neighbourhoods…</p>)}
+    <Panel title={t('Set up your trade profile.')} kicker={t('Worker onboarding')} onClose={onClose}>
+      {!catalog && (loadError ? <div role="alert"><p className="form-error">{t(loadError)}</p>
+        <button type="button" className="button-secondary" onClick={() => { setLoadError(''); setAttempt((value) => value + 1) }}>{t('Try again')}</button>
+      </div> : <p role="status">{t('Loading trades and neighbourhoods…')}</p>)}
       {catalog && step < 0 && <div className="panel-form">
-        <p className="panel-deck">Say your name, trade, neighbourhood and years of experience. We’ll put it into a profile for you to check.</p>
+        <p className="panel-deck">{t('Say your name, trade, neighbourhood and years of experience. We’ll put it into a profile for you to check.')}</p>
         <div className="voice-example">
           <Icon name="mic" size={26} />
           <p><span lang="ur" dir="rtl">میرا نام احمد ہے۔ میں جی ٹین، اسلام آباد میں آٹھ سال سے الیکٹریشن ہوں۔</span>
@@ -84,33 +86,32 @@ export default function ProfilePanel({ voiceEnabled, call, onSuccess, onClose, o
         </div>
         <Listen text="اپنا نام، ہنر، علاقہ اور تجربہ بتائیں۔" english="Say your name, trade, neighbourhood, and years of experience." />
         <VoiceInput label="Record my introduction" value={audio} onChange={setAudio} seconds={28} disabled={busy} />
-        <p className="hint">When you choose “Fill my profile,” your recording is sent to Google Gemini to extract these four details.</p>
-        <RippleButton className="button-primary" onClick={useVoice} disabled={!audio || busy}>{busy ? 'Listening to your introduction…' : 'Fill my profile'}</RippleButton>
-        <button type="button" className="text-button align-start" disabled={busy} onClick={() => { setStep(0); setError('') }}>Use guided setup</button>
+        <p className="hint">{t('When you choose “Fill my profile,” your recording is sent to Google Gemini to extract these four details.')}</p>
+        <RippleButton className="button-primary" onClick={useVoice} disabled={!audio || busy}>{t(busy ? 'Listening to your introduction…' : 'Fill my profile')}</RippleButton>
+        <button type="button" className="text-button align-start" disabled={busy} onClick={() => { setStep(0); setError('') }}>{t('Use guided setup')}</button>
       </div>}
       {catalog && active && <div className="panel-form">
-        <div className="profile-progress" aria-label={`Step ${step + 1} of ${steps.length}`}>
+        <div className="profile-progress" aria-label={t('Step {step} of {total}', { step: step + 1, total: steps.length })}>
           {steps.map(({ id }, index) => <span key={id} className={index <= step ? 'filled' : ''} />)}
         </div>
-        <h3 className="form-title">{active.title}</h3>
-        <p className="hint" lang="ur" dir="rtl">{active.urdu}</p>
+        <h3 className="form-title">{t(active.title)}</h3>
         <Listen text={active.urdu} english={active.title} />
         {active.id === 'trade' && <div className="profile-choices">
-          {catalog.services.map(({ id, name, urdu, icon }) => <button type="button" className="profile-choice" key={id}
+          {catalog.services.map(({ id, name, icon }) => <button type="button" className="profile-choice" key={id}
             aria-pressed={profile.service_id === id} onClick={() => update({ service_id: id })}>
-            <Icon name={icon} size={24} /><span>{name}<small lang="ur" dir="rtl">{urdu}</small></span>
+            <Icon name={icon} size={24} /><span>{t(name)}</span>
           </button>)}
         </div>}
         {active.id === 'area' && <>
           <div className="profile-choices">
             {catalog.cities.map((city) => <button type="button" className="profile-choice" key={city}
               aria-pressed={profile.city === city} onClick={() => update({ city, area: profile.city === city ? profile.area : '' })}>
-              <Icon name="pin" size={20} />{city}</button>)}
+              <Icon name="pin" size={20} />{t(city)}</button>)}
           </div>
-          {profile.city && <label className="form-field">Neighbourhood
+          {profile.city && <label className="form-field">{t('Neighbourhood')}
             <select value={profile.area} onChange={(event) => update({ area: event.target.value })}>
-              <option value="">Choose your area</option>
-              {catalog.areas[profile.city].map((area) => <option key={area}>{area}</option>)}
+              <option value="">{t('Choose your area')}</option>
+              {catalog.areas[profile.city].map((area) => <option key={area} value={area}>{t(area)}</option>)}
             </select>
           </label>}
         </>}
@@ -119,37 +120,37 @@ export default function ProfilePanel({ voiceEnabled, call, onSuccess, onClose, o
             {years.map((value) => <button key={value} type="button" className="profile-choice"
               aria-pressed={profile.experience_years === value} onClick={() => update({ experience_years: value })}>{value}</button>)}
           </div>
-          <label className="form-field">Years of experience
+          <label className="form-field">{t('Years of experience')}
             <input type="number" min="0" max="70" value={profile.experience_years ?? ''}
               onChange={(event) => update({ experience_years: event.target.value === '' ? null : Math.max(0, Math.min(70, Math.trunc(Number(event.target.value)))) })} />
           </label>
         </>}
         {active.id === 'name' && <>
           <Dictate label="Say my name" onText={(name) => update({ name: name.slice(0, 80) })} />
-          <label className="form-field">Name <input autoComplete="name" maxLength={80} value={profile.name} onChange={(event) => update({ name: event.target.value })} /></label>
+          <label className="form-field">{t('Name')} <input dir="auto" autoComplete="name" maxLength={80} value={profile.name} onChange={(event) => update({ name: event.target.value })} /></label>
         </>}
         <div className="panel-actions">
-          {(step > 0 || voiceEnabled) && <button type="button" className="button-secondary" onClick={() => setStep(step - 1)}><Icon name="left" size={17} /> Back</button>}
-          <RippleButton className="button-primary" disabled={!allowed} onClick={() => setStep(step + 1)}>Continue</RippleButton>
+          {(step > 0 || voiceEnabled) && <button type="button" className="button-secondary" onClick={() => setStep(step - 1)}><Icon name="left" size={17} /> {t('Back')}</button>}
+          <RippleButton className="button-primary" disabled={!allowed} onClick={() => setStep(step + 1)}>{t('Continue')}</RippleButton>
         </div>
       </div>}
       {catalog && step === steps.length && <div className="panel-form">
-        <p className="panel-deck">Check the details customers will see. Your mobile number stays private.</p>
+        <p className="panel-deck">{t('Check the details customers will see. Your mobile number stays private.')}</p>
         <dl className="profile-preview">
-          <div><dt>Name</dt><dd dir="auto">{profile.name}</dd></div>
-          <div><dt>Trade</dt><dd>{trade?.name}</dd></div>
-          <div><dt>Area</dt><dd>{profile.area}, {profile.city}</dd></div>
-          <div><dt>Experience</dt><dd>{profile.experience_years} years</dd></div>
+          <div><dt>{t('Name')}</dt><dd dir="auto">{profile.name}</dd></div>
+          <div><dt>{t('Trade')}</dt><dd>{trade && t(trade.name)}</dd></div>
+          <div><dt>{t('Area')}</dt><dd><bdi>{t(profile.area)}</bdi>, {t(profile.city)}</dd></div>
+          <div><dt>{t('Experience')}</dt><dd>{t('{years} years', { years: profile.experience_years })}</dd></div>
         </dl>
         <Listen text={`${profile.name}، ${trade?.urdu}، ${profile.area}، ${profile.city}، ${profile.experience_years} سال کا تجربہ۔`}
           english={`${profile.name}, ${trade?.name}, ${profile.area} ${profile.city}, ${profile.experience_years} years of experience.`} label="Listen to my profile" />
         <div className="panel-actions">
-          <button type="button" className="button-secondary" disabled={busy} onClick={() => setStep(0)}>Change details</button>
-          <RippleButton className="button-primary" disabled={busy} onClick={publish}>{busy ? 'Publishing…' : 'Publish profile'}</RippleButton>
+          <button type="button" className="button-secondary" disabled={busy} onClick={() => setStep(0)}>{t('Change details')}</button>
+          <RippleButton className="button-primary" disabled={busy} onClick={publish}>{t(busy ? 'Publishing…' : 'Publish profile')}</RippleButton>
         </div>
       </div>}
-      {error && <p className="form-error" role="alert">{error}</p>}
-      <div className="panel-bottom"><button type="button" className="text-button" disabled={busy} onClick={signOut}>Sign out</button></div>
+      {error && <p className="form-error" role="alert">{t(error)}</p>}
+      <div className="panel-bottom"><button type="button" className="text-button" disabled={busy} onClick={signOut}>{t('Sign out')}</button></div>
     </Panel>
   )
 }

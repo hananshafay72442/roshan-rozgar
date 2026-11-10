@@ -1,16 +1,23 @@
 <!doctype html>
-<html lang="en">
+<html lang="ur-Latn-PK" dir="ltr">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#ffffff" />
     <meta name="description" content="Find local electricians, plumbers, and skilled trade workers in Islamabad and Rawalpindi with Roshan Rozgar." />
-    <title>Roshan Rozgar — Local skills, closer to home</title>
-    <meta name="theme-color" content="#ffffff" />
+    <title>Roshan Rozgar — Hunarmand aap ke qareeb</title>
     <script>
       try {
-        document.documentElement.dataset.theme = localStorage.getItem('roshan-theme') === 'dark' ? 'dark' : 'light'
+        const root = document.documentElement
+        root.dataset.theme = localStorage.getItem('roshan-theme') === 'dark' ? 'dark' : 'light'
+        const language = localStorage.getItem('roshan-language')
+        if (language === 'ur') {
+          root.lang = 'ur-PK'
+          root.dir = 'rtl'
+        } else if (language === 'en') {
+          root.lang = 'en'
+        }
       } catch { document.documentElement.dataset.theme = 'light' }
     </script>
   </head>
