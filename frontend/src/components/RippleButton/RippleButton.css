@@ -1,0 +1,90 @@
+.ripple-button {
+  --ripple-color: var(--ember, #bb410e);
+  --ripple-border: var(--ember, #bb410e);
+  --ripple-surface: #fff;
+  --ripple-hover-text: #fff;
+  --ripple-x: 50%;
+  --ripple-y: 50%;
+  --ripple-size: 250px;
+  box-sizing: border-box;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  display: inline-flex;
+  justify-content: center;
+  min-height: 46px;
+  padding: 13px 20px;
+  border: 1px solid var(--ripple-border);
+  border-radius: 6px;
+  background: var(--ripple-surface);
+  color: var(--ripple-color);
+  font: 600 14px/1.4 "Segoe UI", Arial, sans-serif;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.ripple-button.button-primary {
+  --ripple-surface: var(--ember, #bb410e);
+  --ripple-color: #96300a;
+  color: #fff;
+}
+
+.ripple-button__fill {
+  position: absolute;
+  left: var(--ripple-x);
+  top: var(--ripple-y);
+  width: var(--ripple-size);
+  height: var(--ripple-size);
+  border-radius: 50%;
+  background: var(--ripple-color);
+  transform: translate(-50%, -50%) scale(0);
+  transition: transform .9s ease;
+  pointer-events: none;
+}
+
+.ripple-button__label {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: color .7s ease;
+}
+
+.ripple-button__label svg {
+  flex: none;
+  transition: transform .25s ease;
+}
+
+.ripple-button:not(:disabled):is(:hover, :focus-visible) .ripple-button__fill {
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.ripple-button:not(:disabled):is(:hover, :focus-visible) .ripple-button__label {
+  color: var(--ripple-hover-text);
+}
+
+.ripple-button:not(:disabled):hover .ripple-button__label svg {
+  transform: translateX(3px);
+}
+
+.ripple-button:focus-visible {
+  outline: 2px solid var(--ember, #bb410e);
+  outline-offset: 4px;
+}
+
+.ripple-button:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ripple-button__fill,
+  .ripple-button__label,
+  .ripple-button__label svg {
+    transition: none;
+  }
+
+  .ripple-button:not(:disabled):hover .ripple-button__label svg {
+    transform: none;
+  }
+}
