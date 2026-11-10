@@ -132,10 +132,6 @@ export default function AuthPanel({ initialMode, initialRole, session, call, onS
                 <input type="email" dir="ltr" autoComplete="email" autoCapitalize="none" placeholder="name@example.com" maxLength={254}
                   required value={email} onChange={(event) => setEmail(event.target.value)} />
               </label>
-              {usePassword && mode === 'register' && <label className="form-field">{t('Mobile number (optional)')}
-                <input type="tel" dir="ltr" autoComplete="tel" placeholder="0300 1234567" maxLength={22}
-                  value={contactPhone} onChange={(event) => setContactPhone(event.target.value)} />
-              </label>}
               {usePassword && mode === 'register' && <label className="form-field">{t('Contact phone (optional)')}
                 <input type="tel" dir="ltr" autoComplete="tel" maxLength={24} value={contactPhone} onChange={event => setContactPhone(event.target.value)} />
                 <span className="hint">{t('Only administrators can see this number.')}</span>

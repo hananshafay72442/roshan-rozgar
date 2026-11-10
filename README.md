@@ -124,10 +124,12 @@ existing sample account, open **Sign in**, choose **Phone (SMS)**, then select
 | Customer | `03000000099` | Requests and completed sample jobs |
 | Worker | `03000000001` | Ahmed Ali, an available electrician in G-10 |
 
-The sample profiles, jobs and reviews are fictional. Newly created demo
-accounts, requests and voice notes are stored in your local MySQL database. Demo delivery
-displays the code in the browser. **Email verified** and **Phone verified**
-indicate a real code was verified. The worker’s contact details stay private.
+With `SEED_SAMPLE_DATA=1`, the sample accounts, phone numbers, worker profiles,
+completed bookings, messages, quotes, ratings and reviews are fictional.
+With `DEMO_VERIFICATION=1` and no delivery provider configured, one-time codes
+appear in the browser. Integration tests mock Twilio, Resend and AI responses.
+New accounts, profiles, requests, voice notes and moderation decisions persist
+in MySQL. Email and password registration works without a delivery provider.
 
 ### Limits and AI disclosure
 
@@ -135,8 +137,9 @@ indicate a real code was verified. The worker’s contact details stay private.
   Availability is current in the database. Job workspaces poll for updates.
 - The Gemini API processes onboarding audio only when the worker requests a
   profile draft. Voice notes sent to a job are stored with that job and are
-  playable by its two participants. Browser microphone access needs HTTPS or
-  localhost. Speech prompts and guided dictation depend on installed voices and
+  playable by its two participants. Admins can play the initial request voice
+  note for moderation. Browser microphone access needs HTTPS or localhost.
+  Speech prompts and guided dictation depend on installed voices and
   browser speech support. Without a configured Gemini key, guided setup remains
   available.
 - [Google Gemini Developer API](https://ai.google.dev/gemini-api/docs/audio) via
