@@ -93,7 +93,7 @@ export default function App() {
       {panel?.type === 'customer-profile' && <CustomerProfilePanel call={call} onClose={close}
         onSuccess={data => { setSession(data); refreshCatalog(); if (panel.worker) setPanel({ type: 'request', worker: panel.worker }); else close() }} />}
       {panel?.type === 'admin' && user?.role === 'admin' && <AdminPanel call={call} onClose={close} onLogout={signedOut} />}
-      {panel?.type === 'profile' && <ProfilePanel editing={panel.editing} call={call} voiceEnabled={session.voice_profile} onClose={close} onLogout={signedOut}
+      {panel?.type === 'profile' && <ProfilePanel editing={panel.editing} call={call} voiceEnabled={session.voice_profile} identityMode={session.identity_mode} onClose={close} onLogout={signedOut}
         onSuccess={(data) => { setSession(data); refreshCatalog(); setPanel({ type: 'workspace' }) }} />}
       {panel?.type === 'workspace' && user && <WorkspacePanel user={user} initialJob={panel.job} call={call} onEditProfile={openProfile}
         onClose={() => { refreshCatalog(); close() }} onLogout={signedOut} onCatalogChange={refreshCatalog} />}

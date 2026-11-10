@@ -1,3 +1,5 @@
+import json
+
 from flask import abort, current_app, request
 from sqlalchemy import update
 from sqlalchemy.exc import IntegrityError
@@ -5,7 +7,9 @@ from sqlalchemy.exc import IntegrityError
 from . import main_bp
 from .auth import current_account, json_body, profile_for, session_data
 from ..extensions import db
-from ..models import Booking, Message, Review, WorkerProfile
+from ..models import Booking, Message, Review, WorkerIdentity, WorkerProfile
+from ..services.identity import identity_data, identity_evidence
+from ..services.verification import reserve_quota
 from ..services.marketplace import audio_file, customer_location, nearby_distance, message_input, validated_profile, worker_data
 
 OFFER_STATES = {"requested", "quoted", "countered"}
@@ -53,8 +57,25 @@ def create_profile():
     account = current_account("worker")
     if profile_for(account):
         abort(409, description="Your worker profile is already complete.")
-    db.session.add(WorkerProfile(user_id=account.id, moderation="pending", **validated_profile(json_body())))
+    evidence = None
+    if request.mimetype == "multipart/form-data":
+        reserve_quota("identity", str(account.id), 5, 3600)
+        try:
+            data = json.loads(request.form.get("profile", ""))
+        except (ValueError, TypeError):
+            abort(400, description="Send the requested information and try again.")
+        if not isinstance(data, dict):
+            abort(400, description="Send the requested information and try again.")
+        details = validated_profile(data)
+        evidence = identity_evidence()
+    else:
+        details = validated_profile(json_body())
+    profile = WorkerProfile(user_id=account.id, moderation="pending", **details)
+    db.session.add(profile)
     try:
+        if evidence:
+            db.session.flush()
+            db.session.add(WorkerIdentity(worker_id=profile.id, **evidence))
         db.session.commit()
     except IntegrityError:
         db.session.rollback()
@@ -66,8 +87,9 @@ def create_profile():
 def get_profile():
     account = current_account("worker")
     profile = profile_for(account)
-    return {"profile": {
+    return {"identity_mode": "automatic" if current_app.config.get("REKOGNITION_REGION") else "manual", "profile": {
         **worker_data(profile, verification=account.verification), "taking_work": profile.taking_work,
+        "identity": identity_data(profile.id),
     } if profile else None}
 
 
@@ -199,7 +221,7 @@ def accept_quote(job_id):
 
 
 def close_job(job_id, state):
-    account = current_account("worker" if state in ("completed", "declined") else None)
+    account = current_account("worker" if state == "declined" else None)
     job, profile, _ = owned_job(job_id, account)
     previous_state = job.state
     allowed_states = {

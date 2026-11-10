@@ -8,3 +8,5 @@ certifi>=2025.1.31
 google-genai>=2.34,<3
 httpx>=0.28.1,<1
 email-validator>=2.2,<3
+Pillow>=11,<13
+boto3>=1.35,<2

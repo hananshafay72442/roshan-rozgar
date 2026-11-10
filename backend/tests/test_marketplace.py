@@ -6,6 +6,7 @@ import wave
 from concurrent.futures import ThreadPoolExecutor
 from threading import Barrier
 from unittest.mock import patch
+from PIL import Image
 
 from sqlalchemy import inspect
 from sqlalchemy.engine import make_url
@@ -85,6 +86,16 @@ class MarketplaceTests(unittest.TestCase):
         })
         self.assertEqual(created.status_code, 201, created.json)
         result = worker.get("/api/profile").json["profile"]
+        photos = []
+        for color in ("red", "blue"):
+            buffer = io.BytesIO()
+            Image.new("RGB", (320, 240), color).save(buffer, "JPEG")
+            buffer.seek(0)
+            photos.append(buffer)
+        submitted = worker.post("/api/profile/identity", headers=self.headers(worker), data={
+            "selfie": (photos[0], "selfie.jpg"), "cnic_front": (photos[1], "cnic.jpg"), "identity_consent": "true",
+        })
+        self.assertEqual(submitted.status_code, 201, submitted.json)
         if approve:
             self.approve(WorkerProfile, result["id"])
         return worker, result["id"]
@@ -114,7 +125,8 @@ class MarketplaceTests(unittest.TestCase):
         queue = admin.get("/api/admin/review").json
         self.assertEqual(queue["profiles"][0]["phone"], "+923001000001")
         self.assertNotIn("requests", queue)
-        decision = {"decision": "approved"}
+        decision = {"decision": "approved", "identity_confirmed": True,
+                    "identity_version": queue["profiles"][0]["identity"]["version"]}
         endpoint = f"/api/admin/review/profiles/{worker_id}"
         self.assertEqual(customer.patch(endpoint, json=decision, headers=self.headers(customer)).status_code, 403)
         self.assertEqual(admin.patch(endpoint, json=decision, headers=self.headers(admin)).status_code, 200)

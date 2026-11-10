@@ -6,6 +6,8 @@ import RippleButton from '../RippleButton/RippleButton'
 import { Dictate, Listen } from '../SpeechButtons'
 import VoiceInput from '../VoiceInput'
 import Panel from './Panel'
+import IdentityFields from '../IdentityFields'
+import { identityForm } from '../../api/client'
 
 const empty = { name: '', service_id: '', city: '', area: '', experience_years: null }
 const years = [0, 1, 3, 5, 10, 15, 20, 25]
@@ -16,7 +18,7 @@ const steps = [
   { id: 'name', title: 'What should customers call you?', urdu: 'آپ کا نام کیا ہے؟' },
 ]
 
-export default function ProfilePanel({ editing = false, voiceEnabled, call, onSuccess, onClose, onLogout }) {
+export default function ProfilePanel({ editing = false, voiceEnabled, identityMode, call, onSuccess, onClose, onLogout }) {
   const { t } = useLanguage()
   const [catalog, setCatalog] = useState(null)
   const [attempt, setAttempt] = useState(0)
@@ -26,6 +28,8 @@ export default function ProfilePanel({ editing = false, voiceEnabled, call, onSu
   const [audio, setAudio] = useState(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [photos, setPhotos] = useState({})
+  const [consent, setConsent] = useState(false)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -56,7 +60,11 @@ export default function ProfilePanel({ editing = false, voiceEnabled, call, onSu
   async function publish() {
     setBusy(true)
     setError('')
-    try { onSuccess(await call('/profile', { method: editing ? 'PATCH' : 'POST', data: profile })) }
+    try {
+      const data = editing ? profile : identityForm(photos, consent)
+      if (!editing) data.append('profile', JSON.stringify(profile))
+      onSuccess(await call('/profile', { method: editing ? 'PATCH' : 'POST', data }))
+    }
     catch (failure) { setError(failure.message) }
     finally { setBusy(false) }
   }
@@ -145,9 +153,11 @@ export default function ProfilePanel({ editing = false, voiceEnabled, call, onSu
         </dl>
         <Listen text={`${profile.name}، ${trade?.urdu}، ${profile.area}، ${profile.city}، ${profile.experience_years} سال کا تجربہ۔`}
           english={`${profile.name}, ${trade?.name}, ${profile.area} ${profile.city}, ${profile.experience_years} years of experience.`} label="Listen to my profile" />
+        {!editing && <IdentityFields photos={photos} setPhotos={setPhotos} consent={consent} setConsent={setConsent}
+          mode={identityMode} disabled={busy} onError={setError} />}
         <div className="panel-actions">
           <button type="button" className="button-secondary" disabled={busy} onClick={() => setStep(0)}>{t('Change details')}</button>
-          <RippleButton className="button-primary" disabled={busy} onClick={publish}>{t(busy ? 'Please wait…' : editing ? 'Save changes' : 'Submit for review')}</RippleButton>
+          <RippleButton className="button-primary" disabled={busy || (!editing && (!consent || !photos.selfie || !photos.cnic_front))} onClick={publish}>{t(busy ? 'Please wait…' : editing ? 'Save changes' : 'Submit for review')}</RippleButton>
         </div>
       </div>}
       {error && <p className="form-error" role="alert">{t(error)}</p>}

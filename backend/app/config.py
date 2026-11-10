@@ -88,6 +88,7 @@ class Config:
         self.ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "").strip()
         self.ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "")
         self.GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
+        self.REKOGNITION_REGION = os.getenv("REKOGNITION_REGION", "").strip()
         self.GROQ_API_KEY = os.getenv("GROQ_API_KEY", "").strip()
         self.GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-20b").strip()
         self.GROQ_SPEECH_MODEL = os.getenv("GROQ_SPEECH_MODEL", "whisper-large-v3-turbo").strip()

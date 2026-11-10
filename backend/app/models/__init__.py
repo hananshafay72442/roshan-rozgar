@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+import secrets
 
 from sqlalchemy.dialects.mysql import MEDIUMBLOB
 from sqlalchemy.orm import deferred
@@ -79,6 +80,20 @@ class Booking(db.Model):
     state = db.Column(db.String(12), nullable=False, default="requested")
     quote_pkr = db.Column(db.Integer, nullable=True)
     created_at = db.Column(db.DateTime, nullable=False, default=utc_now)
+
+
+class WorkerIdentity(db.Model):
+    """Private evidence; never included in the public worker catalog."""
+    id = db.Column(db.Integer, primary_key=True)
+    worker_id = db.Column(db.Integer, db.ForeignKey("worker_profile.id"), nullable=False, unique=True)
+    selfie = deferred(db.Column(MEDIUMBLOB, nullable=False))
+    cnic_front = deferred(db.Column(MEDIUMBLOB, nullable=False))
+    face_check = db.Column(db.String(16), nullable=False)
+    similarity = db.Column(db.Float)
+    submission_token = db.Column(db.String(32), nullable=False, default=lambda: secrets.token_hex(16))
+    submitted_at = db.Column(db.DateTime, nullable=False, default=utc_now)
+    reviewed_by = db.Column(db.Integer, db.ForeignKey("account.id"))
+    reviewed_at = db.Column(db.DateTime)
 
 
 class Message(db.Model):

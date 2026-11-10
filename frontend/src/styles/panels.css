@@ -149,3 +149,27 @@ body:has(dialog[open]) { overflow: hidden; }
 
 .admin-review-item { display: grid; gap: 6px; padding: 14px; border: 1px solid var(--line); border-radius: 10px; overflow-wrap: anywhere; }
 .admin-review-item audio { max-width: 100%; }
+
+.identity-fields { min-width: 0; border: 1px solid var(--line); border-radius: 12px; padding: 14px; margin: 8px 0; }
+.identity-fields legend { font-weight: 800; padding-inline: 6px; }
+.identity-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.identity-photo { min-width: 0; padding: 10px; border: 1px dashed var(--line); border-radius: 9px; }
+.identity-photo img, .identity-placeholder { width: 100%; height: 140px; object-fit: contain; background: var(--surface); border-radius: 6px; }
+.identity-placeholder { display: grid; align-items: center; text-align: center; color: var(--muted); font-size: .85rem; padding: 12px; box-sizing: border-box; }
+.identity-photo input { width: 100%; max-width: 100%; padding: 6px 0; font-size: .8rem; }
+.identity-consent { display: flex; align-items: flex-start; gap: 9px; margin-top: 12px; font-size: .85rem; line-height: 1.6; }
+.identity-consent input { flex: 0 0 auto; width: 18px; height: 18px; margin-top: 3px; }
+.identity-submission { border: 1px solid var(--line); border-radius: 12px; padding: 14px; margin: 12px 0; }
+.identity-submission h3 { margin: 0 0 6px; font-size: 1rem; }
+.admin-identity-images figure { margin: 0; min-width: 0; }
+.admin-identity-images img { width: 100%; height: 240px; object-fit: contain; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
+.admin-identity-images figcaption { color: var(--muted); font-size: .85rem; }
+.identity-check-status, .review-prompt { color: var(--accent-ink); font-weight: 750; }
+.review-prompt { font-size: .8rem; }
+.review-filters { margin-block: 14px; }
+.review-filters [aria-pressed="true"] { border-color: var(--accent-ink); color: var(--accent-ink); }
+.review-form { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin-block: 12px; }
+@media (max-width: 480px) {
+  .identity-grid { grid-template-columns: minmax(0, 1fr); }
+  .admin-identity-images img { height: auto; max-height: 320px; }
+}

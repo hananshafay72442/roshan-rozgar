@@ -86,6 +86,16 @@ export default function JobDetail({ jobId, call, role, revision, onChange }) {
         }[job.state] || 'Agreed price')}</span>
         <strong>{t('Rs {amount}', { amount: amount.format(job.quote_pkr) })}</strong>
       </div>}
+      {job.state === 'completed' && !isWorker && (job.reviewed ? <p className="hint"><Icon name="check" size={17} /> {t('Your review has been published.')}</p>
+        : <form className="panel-form review-form" onSubmit={(event) => { event.preventDefault(); act('review', { rating, text: review }) }}>
+          <h4 className="form-title">{t('How did it go?')}</h4>
+          <div className="star-options" aria-label={t('Choose a rating')}>
+            {[1, 2, 3, 4, 5].map((value) => <button type="button" key={value} className={`icon-button${value <= rating ? ' filled' : ''}`}
+              aria-pressed={value === rating} aria-label={t(value === 1 ? '{count} star' : '{count} stars', { count: value })} onClick={() => setRating(value)}><Icon name="star" size={20} /></button>)}
+          </div>
+          <label className="form-field">{t('Note (optional)')}<textarea dir="auto" rows={2} maxLength={400} value={review} onChange={(event) => setReview(event.target.value)} /></label>
+          <RippleButton type="submit" className="button-primary" disabled={busy || rating < 1}>{t('Post review')}</RippleButton>
+        </form>)}
       <div className="chat-log" role="log" aria-label={t('Job messages')} aria-live="polite">
         {messages.map((item) => <article key={item.id} className={`chat-message${item.mine ? ' is-mine' : ''}`}>
           <strong>{item.mine ? t('You') : isWorker ? t('Customer') : job.worker.name}</strong>
@@ -121,17 +131,7 @@ export default function JobDetail({ jobId, call, role, revision, onChange }) {
         <VoiceInput value={audio} onChange={setAudio} disabled={busy} />
         <button type="submit" className="button-secondary align-start" disabled={busy || (!message.trim() && !audio)}>{t('Send message')}</button>
       </form>}
-      {isWorker && job.state === 'confirmed' && <RippleButton className="button-primary" disabled={busy} onClick={() => act('complete')}>{t('Mark job complete')}</RippleButton>}
-      {job.state === 'completed' && !isWorker && (job.reviewed ? <p className="hint"><Icon name="check" size={17} /> {t('Your review has been published.')}</p>
-        : <form className="panel-form review-form" onSubmit={(event) => { event.preventDefault(); act('review', { rating, text: review }) }}>
-          <h4 className="form-title">{t('How did it go?')}</h4>
-          <div className="star-options" aria-label={t('Choose a rating')}>
-            {[1, 2, 3, 4, 5].map((value) => <button type="button" key={value} className={`icon-button${value <= rating ? ' filled' : ''}`}
-              aria-pressed={value === rating} aria-label={t(value === 1 ? '{count} star' : '{count} stars', { count: value })} onClick={() => setRating(value)}><Icon name="star" size={20} /></button>)}
-          </div>
-          <label className="form-field">{t('Note (optional)')}<textarea dir="auto" rows={2} maxLength={400} value={review} onChange={(event) => setReview(event.target.value)} /></label>
-          <RippleButton type="submit" className="button-primary" disabled={busy || rating < 1}>{t('Post review')}</RippleButton>
-        </form>)}
+      {job.state === 'confirmed' && <RippleButton className="button-primary" disabled={busy} onClick={() => act('complete')}>{t(isWorker ? 'Mark job complete' : 'Work finished? Complete and review')}</RippleButton>}
       {open && (cancelling ? <div className="cancel-confirm">
         <p>{t(canDecline ? 'Decline this request?' : 'Cancel this request? A confirmed booking will free the worker for another job.')}</p>
         <div className="panel-actions">

@@ -1,6 +1,8 @@
 import { accountMessages } from './accountMessages'
+import { identityMessages } from './identityMessages'
 
 export const messages = {
+  ...identityMessages,
   'Roshan Rozgar': ['Roshan Rozgar', 'روشن روزگار'],
   'Roshan Rozgar home': ['Roshan Rozgar ka safha', 'روشن روزگار کا مرکزی صفحہ'],
   'Local skills, closer to home': ['Hunarmand aap ke qareeb', 'ہنرمند آپ کے قریب'],

@@ -3,11 +3,14 @@ import { useEffect, useState } from 'react'
 import Icon from '../Icon'
 import Panel from './Panel'
 import JobDetail, { jobStatus } from './JobDetail'
+import IdentitySubmission from '../IdentitySubmission'
 
 export default function WorkspacePanel({ user, initialJob, call, onClose, onLogout, onCatalogChange, onEditProfile }) {
   const { t } = useLanguage()
   const [jobs, setJobs] = useState(null)
   const [profile, setProfile] = useState(null)
+  const [identityMode, setIdentityMode] = useState('manual')
+  const [reviewsOnly, setReviewsOnly] = useState(false)
   const [selected, setSelected] = useState(initialJob)
   const [error, setError] = useState('')
   const [actionError, setActionError] = useState('')
@@ -23,6 +26,7 @@ export default function WorkspacePanel({ user, initialJob, call, onClose, onLogo
         if (controller.signal.aborted) return
         setJobs(result.jobs)
         setProfile(info?.profile)
+        if (info) setIdentityMode(info.identity_mode)
         setError('')
       }).catch((failure) => { if (!controller.signal.aborted) setError(failure.message) })
     }
@@ -55,7 +59,9 @@ export default function WorkspacePanel({ user, initialJob, call, onClose, onLogo
     finally { setBusy(false) }
   }
 
-  const activeJob = jobs?.some(({ id }) => id === selected) ? selected : jobs?.[0]?.id
+  const reviewable = jobs?.filter(job => job.state === 'completed' && !job.reviewed) || []
+  const visibleJobs = reviewsOnly ? reviewable : jobs
+  const activeJob = visibleJobs?.some(({ id }) => id === selected) ? selected : visibleJobs?.[0]?.id
   const verifiedLabel = {
     sms: 'Phone verified', email: 'Email verified', demo: 'Demo verification',
   }[user.verification]
@@ -74,6 +80,11 @@ export default function WorkspacePanel({ user, initialJob, call, onClose, onLogo
           {t(verifiedLabel)}</span>}
         <button type="button" className="text-button" onClick={signOut} disabled={busy}>{t('Sign out')}</button>
       </div>
+      {worker && profile && <IdentitySubmission profile={profile} mode={identityMode} call={call} onChange={changed} />}
+      {!worker && jobs && <div className="panel-actions review-filters">
+        <button type="button" className="button-secondary" aria-pressed={!reviewsOnly} onClick={() => setReviewsOnly(false)}>{t('All requests')}</button>
+        <button type="button" className="button-secondary" aria-pressed={reviewsOnly} onClick={() => setReviewsOnly(true)}>{t('Reviews to write')} ({reviewable.length})</button>
+      </div>}
       {actionError && <p className="form-error" role="alert">{t(actionError)}</p>}
       {error && <div className="workspace-error" role="alert">
         <p className="form-error">{t(error)}</p>
@@ -86,12 +97,14 @@ export default function WorkspacePanel({ user, initialJob, call, onClose, onLogo
         <p>{t(worker ? 'Requests from neighbours will appear here.' : 'Choose a local worker to start a conversation.')}</p>
         {!worker && <a className="button-secondary" href="#workers" onClick={onClose}>{t('Find a worker')}</a>}
       </div>}
-      {jobs?.length > 0 && <div className="workspace-layout">
+      {reviewsOnly && !reviewable.length && <p className="hint">{t('You are all caught up. Reviews become available after a completed job.')}</p>}
+      {visibleJobs?.length > 0 && <div className="workspace-layout">
         <nav className="job-list" aria-label={t('Your jobs')}>
-          {jobs.map((job) => <button key={job.id} type="button" className="job-list-item" onClick={() => setSelected(job.id)}
+          {visibleJobs.map((job) => <button key={job.id} type="button" className="job-list-item" onClick={() => setSelected(job.id)}
             aria-pressed={job.id === activeJob}>
             <strong>{worker ? t('Request {id}', { id: job.id }) : job.worker.name}</strong>
             <small>{t(jobStatus(job))}{job.quote_pkr ? ` · ${t('Rs {amount}', { amount: job.quote_pkr.toLocaleString('en-PK') })}` : ''}</small>
+            {!worker && job.state === 'completed' && !job.reviewed && <span className="review-prompt">★ {t('Leave a review')}</span>}
           </button>)}
         </nav>
         <JobDetail key={activeJob} jobId={activeJob} call={call} revision={revision} role={user.role} onChange={changed} />

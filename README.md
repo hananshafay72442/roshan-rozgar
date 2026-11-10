@@ -50,6 +50,53 @@ builds both, initializes the database schema, and runs Gunicorn on port 8000 by 
 
 ## Admin review
 
+### Worker face photo and CNIC front
+
+New worker setup requires a face photo and CNIC front, with a private-review
+consent checkbox. Photos are compressed in the browser, validated and re-encoded
+on the server, and stored privately in a new MySQL `worker_identity` table.
+`init-marketplace` creates this table additively; existing accounts, bookings,
+SMS access and reviews are preserved. Existing workers can submit or replace
+their photos from **Worker workspace → Identity verification**. A resubmission
+returns the profile to pending without releasing its active booking.
+
+Only submissions with both photos enter the admin queue. The administrator sees
+the two images side by side, the face-check result, and must explicitly confirm
+the face/document check before approval. A stale decision is rejected if the
+worker has replaced the photos. Images are served only to their owner or an
+administrator, with `no-store` headers; customers never receive CNIC photos.
+
+- **Automatic matching:** set `REKOGNITION_REGION` and backend AWS credentials
+  (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, and `AWS_SESSION_TOKEN` for
+  temporary credentials), or use an AWS role. Grant only
+  `rekognition:DetectFaces` and `rekognition:CompareFaces`. The backend requires
+  one face in each photo and at least 95% similarity before sending the request
+  to the admin. A match still requires manual admin approval. Provider failures
+  return a retry error and never silently bypass the comparison.
+- **Without configuration:** the UI clearly says automatic matching is disabled,
+  and the submission is labelled **Manual face comparison required**. The admin
+  compares the photos. This is not a mocked successful biometric check.
+
+This checks photo similarity and supports human review; it does not validate
+CNIC authenticity with NADRA, verify document numbers, or provide liveness
+detection. With automatic matching enabled, the two photos are sent to Amazon
+Rekognition with the worker's consent. No real CNIC images are included in the
+repository or sample dataset. Provider tests use synthetic images and mocked
+responses. See [Amazon's face comparison documentation](https://docs.aws.amazon.com/rekognition/latest/dg/faces-comparefaces.html).
+
+### Customer reviews
+
+Customers can select **Work finished? Complete and review** for their confirmed
+booking, then choose 1–5 stars and an optional note. The workspace has a
+**Reviews to write** filter and a visible prompt on completed, unreviewed jobs.
+Reviews appear above the conversation. Only the booking's customer can post,
+once per completed booking; duplicate, premature and worker reviews are rejected.
+Ratings update public worker cards and reviews immediately.
+
+The isolated identity/review HTTP tests run without an external database using
+temporary SQLite storage; face-provider calls and MySQL quota claims are mocked.
+The dedicated MySQL suite remains available through `TEST_MYSQL_URL`.
+
 After running `init-marketplace`, run `python -m flask --app wsgi:app create-admin`
 from `backend/`. Enter a new email and password at the prompts, then sign in
 and open **Admin review**. Administrators can approve or reject new or

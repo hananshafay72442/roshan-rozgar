@@ -25,3 +25,11 @@ export function messageData(text, audio, extra = {}) {
   form.append('audio', audio, 'voice-note')
   return form
 }
+
+export function identityForm(photos, consent) {
+  const form = new FormData()
+  form.append('selfie', photos.selfie, 'selfie.jpg')
+  form.append('cnic_front', photos.cnic_front, 'cnic-front.jpg')
+  form.append('identity_consent', String(consent))
+  return form
+}
