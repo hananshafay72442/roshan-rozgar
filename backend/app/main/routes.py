@@ -1,4 +1,4 @@
-from flask import abort, request
+from flask import abort, current_app, request
 
 from . import main_bp
 from .data import CITIES, SERVICES, WORKERS
@@ -27,10 +27,11 @@ def workers():
     if available not in {"", "true", "false"}:
         abort(400, description="Available must be true or false.")
 
+    sample_data = current_app.config.get("SEED_SAMPLE_DATA", True)
     results = [
-        worker for worker in WORKERS
+        worker for worker in (WORKERS if sample_data else [])
         if (not city or worker["city"] == city)
         and (not service_id or worker["service_id"] == service_id)
         and (not available or worker["available"] == (available == "true"))
     ]
-    return {"workers": results, "total": len(results), "demo": True}
+    return {"workers": results, "total": len(results), "demo": sample_data}

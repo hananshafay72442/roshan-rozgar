@@ -8,11 +8,10 @@ from .extensions import db, migrate
 
 
 def create_app(config_class=None):
-    load_dotenv(Path(__file__).resolve().parents[1] / ".env")
-
     if config_class is None:
+        load_dotenv(Path(__file__).resolve().parents[1] / ".env")
         from .config import Config
-        config_class = Config
+        config_class = Config()
 
     app = Flask(__name__, static_folder=None)
     app.config.from_object(config_class)
@@ -23,6 +22,9 @@ def create_app(config_class=None):
     from . import models
     from .main import main_bp
     app.register_blueprint(main_bp)
+
+    from .commands import register_commands
+    register_commands(app)
 
     @app.errorhandler(HTTPException)
     def handle_http_error(error):
