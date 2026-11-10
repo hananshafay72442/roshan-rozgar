@@ -22,28 +22,39 @@ def review_queue():
         .join(Account, Account.id == WorkerProfile.user_id)
         .where(WorkerProfile.moderation == status, WorkerProfile.seed_key.is_(None))
         .order_by(WorkerProfile.id.desc()).limit(100))
-    requests = db.session.execute(db.select(Booking, WorkerProfile, Account, worker_account, CustomerProfile, Message)
+    requests = db.session.execute(db.select(Booking, WorkerProfile, Account, worker_account, CustomerProfile)
         .join(WorkerProfile, WorkerProfile.id == Booking.worker_id)
         .join(Account, Account.id == Booking.customer_id)
         .join(worker_account, worker_account.id == WorkerProfile.user_id)
         .outerjoin(CustomerProfile, CustomerProfile.user_id == Account.id)
-        .outerjoin(Message, (Message.booking_id == Booking.id) &
-                   (Message.id == db.select(db.func.min(Message.id))
-                    .where(Message.booking_id == Booking.id).correlate(Booking).scalar_subquery()))
         .where(Booking.moderation == status, Booking.state != "cancelled")
-        .order_by(Booking.id.desc()).limit(100))
+        .order_by(Booking.id.desc()).limit(100)).all()
+
+    # TiDB does not support scalar subqueries inside JOIN conditions.
+    messages = {}
+    if requests:
+        first_message_ids = db.select(db.func.min(Message.id)).where(
+            Message.booking_id.in_([job.id for job, *_ in requests]),
+        ).group_by(Message.booking_id)
+        first_messages = db.session.scalars(db.select(Message).where(Message.id.in_(first_message_ids)))
+        messages = {message.booking_id: message for message in first_messages}
+
+    request_items = []
+    for job, profile, account, worker, customer in requests:
+        message = messages.get(job.id)
+        request_items.append({
+            "id": job.id, "customer": customer.name if customer else None, "worker": profile.name,
+            "phone": account.phone or account.contact_phone, "worker_phone": worker.phone or worker.contact_phone,
+            "text": message.text if message else "",
+            "audio": f"/api/admin/audio/{message.id}" if message and message.audio_mime else None,
+        })
     return {
         "profiles": [{
             "id": profile.id, "name": profile.name, "service": profile.service_id,
             "city": profile.city, "area": profile.area, "experience": profile.experience_years,
             "phone": account.phone or account.contact_phone,
         } for profile, account in profiles],
-        "requests": [{
-            "id": job.id, "customer": customer.name if customer else None, "worker": profile.name,
-            "phone": account.phone or account.contact_phone, "worker_phone": worker.phone or worker.contact_phone,
-            "text": message.text if message else "",
-            "audio": f"/api/admin/audio/{message.id}" if message and message.audio_mime else None,
-        } for job, profile, account, worker, customer, message in requests],
+        "requests": request_items,
     }
 
 
