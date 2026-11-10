@@ -1,13 +1,19 @@
 import io
-import tempfile
+import os
+import time
 import unittest
 import wave
 from concurrent.futures import ThreadPoolExecutor
 from threading import Barrier
 from unittest.mock import patch
 
+from sqlalchemy import inspect
+from sqlalchemy.engine import make_url
+
 from app import create_app
-from app.config import Config
+from app.config import LOCAL_DB_HOSTS, Config
+from app.extensions import db
+from app.models import RateBucket
 
 
 def wav_data():
@@ -20,15 +26,35 @@ def wav_data():
 
 class MarketplaceTests(unittest.TestCase):
     def setUp(self):
-        directory = tempfile.TemporaryDirectory()
-        self.addCleanup(directory.cleanup)
-        with patch.dict("os.environ", {}, clear=True):
+        test_url = os.environ.get("TEST_MYSQL_URL")
+        if not test_url:
+            self.skipTest("Set TEST_MYSQL_URL to run the MySQL integration suite.")
+        url = make_url(test_url)
+        if url.drivername != "mysql+pymysql" or url.host not in LOCAL_DB_HOSTS or url.database != "roshan_test":
+            self.fail("TEST_MYSQL_URL must target a dedicated local MySQL database named roshan_test.")
+        settings = {
+            "APP_ENV": "testing", "DB_HOST": url.host, "DB_PORT": str(url.port or 3306),
+            "DB_NAME": url.database, "DB_USER": url.username or "", "DB_PASSWORD": url.password or "",
+            "DB_SSL": "0", "DEMO_VERIFICATION": "1", "SECRET_KEY": "test-only",
+        }
+        with patch.dict("os.environ", settings, clear=True):
             config = Config()
         config.TESTING = True
-        config.SECRET_KEY = "test-only"
-        config.SEED_SAMPLE_DATA = False
-        config.SQLALCHEMY_DATABASE_URI = f"sqlite:///{directory.name}/marketplace.db"
         self.app = create_app(config)
+        with self.app.app_context():
+            if inspect(db.engine).get_table_names():
+                self.fail("Use an empty roshan_test database for integration tests.")
+        self.addCleanup(self.drop_test_tables)
+        self.initialize_database()
+
+    def initialize_database(self):
+        result = self.app.test_cli_runner().invoke(args=["init-marketplace"])
+        self.assertEqual(result.exit_code, 0, result.output)
+
+    def drop_test_tables(self):
+        with self.app.app_context():
+            db.drop_all()
+            db.engine.dispose()
 
     @staticmethod
     def headers(client):
@@ -90,18 +116,113 @@ class MarketplaceTests(unittest.TestCase):
             self.assertEqual(result.json["user"]["verification"], "sms")
             self.assertIsNone(self.post(client, "/auth/logout").json["user"])
             # Another code window has elapsed.
-            import time
             with patch("app.main.auth.time.time", return_value=time.time() + 35):
                 self.assertEqual(self.post(client, "/auth/code", {"phone": payload["phone"], "intent": "login"}).status_code, 201)
                 self.assertEqual(self.post(client, "/auth/verify", {"code": "987654"}).json["user"]["role"], "worker")
+
+    def test_live_email_code_creates_an_account_and_signs_it_back_in(self):
+        self.app.config.update(RESEND_API_KEY="test-key", RESEND_FROM_EMAIL="verify@example.com")
+        client = self.app.test_client()
+        self.assertEqual(client.get("/api/session").json["verification_modes"], {"email": "email", "sms": "demo"})
+        payload = {"channel": "email", "email": "Worker@EXAMPLE.COM", "role": "worker", "intent": "register"}
+        with patch("app.main.auth.secrets.randbelow", return_value=482716), patch("app.services.verification.httpx.post") as send:
+            started = self.post(client, "/auth/code", payload)
+            self.assertEqual(started.status_code, 201, started.json)
+            self.assertIsNone(started.json["demo_code"])
+            self.assertNotIn("482716", started.get_data(as_text=True))
+            self.assertEqual(send.call_args.args, ("https://api.resend.com/emails",))
+            message = send.call_args.kwargs["json"]
+            self.assertEqual(message["from"], "verify@example.com")
+            self.assertEqual(message["to"], ["worker@example.com"])
+            self.assertIn("482716", message["text"])
+            self.assertEqual(self.post(self.app.test_client(), "/auth/verify", {"code": "482716"}).status_code, 400)
+            self.assertEqual(self.post(client, "/auth/verify", {"code": "482717"}).status_code, 400)
+
+            verified = self.post(client, "/auth/verify", {"code": "482716"})
+            self.assertEqual(verified.status_code, 200, verified.json)
+            self.assertEqual(verified.json["user"]["verification"], "email")
+            self.assertEqual(self.post(client, "/auth/verify", {"code": "482716"}).status_code, 400)
+            self.assertIsNone(self.post(client, "/auth/logout").json["user"])
+
+            login = {"channel": "email", "email": "worker@example.com", "intent": "login"}
+            with patch("app.main.auth.time.time", return_value=time.time() + 35):
+                self.assertEqual(self.post(client, "/auth/code", login).status_code, 201)
+                result = self.post(client, "/auth/verify", {"code": "482716"})
+                self.assertEqual(result.json["user"]["role"], "worker")
+
+    def test_parallel_email_requests_share_an_ip_quota(self):
+        barrier = Barrier(4)
+
+        def request_code(index):
+            client = self.app.test_client()
+            headers = self.headers(client)
+            barrier.wait(timeout=5)
+            response = client.post("/api/auth/code", headers=headers, json={
+                "channel": "email", "email": f"user{index}@example.com",
+                "role": "customer", "intent": "register",
+            })
+            return response.status_code
+
+        with ThreadPoolExecutor(max_workers=4) as pool:
+            self.assertEqual(list(pool.map(request_code, range(4))), [201] * 4)
+        with self.app.app_context():
+            count = db.session.scalar(db.select(RateBucket.count).where(RateBucket.key.startswith("issue-ip:")))
+            self.assertEqual(count, 4)
+
+    def test_mysql_upgrade_preserves_phone_accounts_profiles_and_jobs(self):
+        _, worker_id = self.new_worker()
+        customer = self.verified("customer", 2)
+        created = self.post(customer, "/jobs", {"worker_id": worker_id, "text": "A loose socket."})
+        job_id = created.json["job"]["id"]
+        with self.app.app_context(), db.engine.begin() as connection:
+            connection.exec_driver_sql("DROP TABLE email_verification_challenge")
+            connection.exec_driver_sql("ALTER TABLE account DROP COLUMN email, MODIFY COLUMN phone VARCHAR(16) NOT NULL")
+        self.initialize_database()
+        self.initialize_database()
+        client = self.app.test_client()
+        with patch("app.main.auth.time.time", return_value=time.time() + 35):
+            started = self.post(client, "/auth/code", {"phone": "03001000002", "intent": "login"})
+            result = self.post(client, "/auth/verify", {"code": started.json["demo_code"]})
+            self.assertEqual(result.json["user"]["role"], "customer")
+            self.assertEqual(client.get(f"/api/jobs/{job_id}").status_code, 200)
+            self.assertEqual(client.get("/api/workers").json["workers"][0]["id"], worker_id)
+        for role in ("worker", "customer"):
+            client = self.app.test_client()
+            started = self.post(client, "/auth/code", {
+                "channel": "email", "email": f"{role}@example.com", "intent": "register", "role": role,
+            })
+            self.assertEqual(started.status_code, 201, started.json)
+            result = self.post(client, "/auth/verify", {"code": started.json["demo_code"]})
+            self.assertEqual(result.json["user"]["role"], role)
+
+    def test_database_check_runs_a_mysql_query(self):
+        result = self.app.test_cli_runner().invoke(args=["check-db"])
+        self.assertEqual(result.exit_code, 0, result.output)
+        self.assertIn("succeeded", result.output)
+
+    def test_seed_switch_controls_the_catalog(self):
+        client = self.app.test_client()
+        self.assertEqual(client.get("/api/workers").json["total"], 0)
+        self.app.config["SEED_SAMPLE_DATA"] = True
+        self.initialize_database()
+        self.assertEqual(client.get("/api/workers").json["total"], 12)
+        self.assertEqual(len(client.get("/api/services").json["services"]), 6)
+        self.assertEqual(client.get("/api/health").status_code, 200)
 
     def test_missing_sms_setup_is_visible_before_asking_for_a_code(self):
         client = self.app.test_client()
         self.assertEqual(client.get("/api/session").json["verification_mode"], "demo")
         self.app.config["DEMO_VERIFICATION"] = False
-        self.assertEqual(client.get("/api/session").json["verification_mode"], "unavailable")
+        session = client.get("/api/session").json
+        self.assertEqual(session["verification_mode"], "unavailable")
+        self.assertEqual(session["verification_modes"], {"email": "unavailable", "sms": "unavailable"})
         result = self.post(client, "/auth/code", {
             "phone": "03001000003", "role": "worker", "intent": "register",
+        })
+        self.assertEqual(result.status_code, 503)
+        self.assertNotIn("demo_code", result.json)
+        result = self.post(client, "/auth/code", {
+            "channel": "email", "email": "worker@example.com", "role": "worker", "intent": "register",
         })
         self.assertEqual(result.status_code, 503)
         self.assertNotIn("demo_code", result.json)

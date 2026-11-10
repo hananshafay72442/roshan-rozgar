@@ -4,6 +4,7 @@ import Icon from './Icon'
 export default function WorkerCard({ worker, service, onRequest, onReviews }) {
   const { t } = useLanguage()
   const initials = worker.name.split(/\s+/).slice(0, 2).map((word) => word[0]).join('')
+  const verifiedLabel = worker.phone_verified ? 'Phone verified' : worker.email_verified ? 'Email verified' : null
 
   return (
     <article className="worker-card">
@@ -13,7 +14,10 @@ export default function WorkerCard({ worker, service, onRequest, onReviews }) {
           <span aria-hidden="true" />{t(worker.available ? 'Available now' : worker.busy ? 'Booked' : 'Off duty')}
         </span>
       </div>
-      <div className="worker-name"><h3 dir="auto">{worker.name}</h3>{worker.phone_verified && <span title={t('Phone verified')}><Icon name="shield" size={19} /><span className="sr-only">{t('Phone verified')}</span></span>}</div>
+      <div className="worker-name">
+        <h3 dir="auto">{worker.name}</h3>
+        {verifiedLabel && <span title={t(verifiedLabel)}><Icon name="shield" size={19} /><span className="sr-only">{t(verifiedLabel)}</span></span>}
+      </div>
       <p className="worker-trade">{service && <>{t(service.name)} <span>·</span> </>}{t('{years} years’ experience', { years: worker.experience_years })}</p>
       <p className="worker-location"><Icon name="pin" size={16} /><bdi>{t(worker.area)}</bdi>, {t(worker.city)}
         {worker.distance_km !== null && worker.distance_km !== undefined && <small>≈ {t('{distance} km', { distance: worker.distance_km.toFixed(1) })}</small>}

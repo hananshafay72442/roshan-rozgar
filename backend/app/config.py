@@ -5,6 +5,7 @@ import certifi
 from sqlalchemy.engine import URL
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
+LOCAL_DB_HOSTS = {"127.0.0.1", "localhost", "::1"}
 
 
 def env_bool(name, default=False):
@@ -37,52 +38,54 @@ class Config:
         self.DB_NAME = os.getenv("DB_NAME", "roshanRozgar").strip()
         self.DB_USER = os.getenv("DB_USER", "").strip()
         self.DB_PASSWORD = os.getenv("DB_PASSWORD", "")
-        self.DB_SSL = env_bool("DB_SSL", True)
-        self.SQLALCHEMY_ENGINE_OPTIONS = {"pool_pre_ping": True}
-        if self.DB_HOST:
-            if not self.DB_NAME or not self.DB_USER:
-                raise ValueError("DB_NAME and DB_USER are required when DB_HOST is set.")
-            if self.DB_NAME.endswith(";"):
-                raise ValueError("Remove the trailing semicolon from DB_NAME.")
-            try:
-                port = int(os.getenv("DB_PORT", "4000"))
-            except ValueError:
-                raise ValueError("DB_PORT must be an integer.") from None
-            if not 1 <= port <= 65535:
-                raise ValueError("DB_PORT must be between 1 and 65535.")
-            self.SQLALCHEMY_DATABASE_URI = URL.create(
-                "mysql+pymysql", host=self.DB_HOST, port=port,
-                username=self.DB_USER, password=self.DB_PASSWORD, database=self.DB_NAME,
-            )
-            connect_args = {"connect_timeout": 10, "read_timeout": 30, "write_timeout": 30}
-            if self.DB_SSL:
-                ca_value = os.getenv("DB_CA_PATH", "").strip()
-                ca_path = Path(ca_value).expanduser() if ca_value else Path(certifi.where())
-                if not ca_path.is_absolute():
-                    ca_path = BACKEND_DIR / ca_path
-                if not ca_path.is_file():
-                    raise ValueError("DB_CA_PATH must point to an existing CA certificate file.")
-                connect_args.update(
-                    ssl_verify_cert=True, ssl_verify_identity=True, ssl_ca=str(ca_path.resolve()),
-                )
-            elif self.DB_HOST.endswith(".tidbcloud.com"):
-                raise ValueError("TiDB Cloud requires DB_SSL=1.")
-            self.SQLALCHEMY_ENGINE_OPTIONS["connect_args"] = connect_args
-        else:
-            if self.APP_ENV == "production":
-                raise ValueError("Set DB_HOST for production. SQLite fallback is for local development.")
-            self.SQLALCHEMY_DATABASE_URI = "sqlite:///roshan_rozgar.db"
+        if not all((self.DB_HOST, self.DB_NAME, self.DB_USER, self.DB_PASSWORD)):
+            raise ValueError("Set DB_HOST, DB_NAME, DB_USER, and DB_PASSWORD for MySQL.")
+        if self.DB_NAME.endswith(";"):
+            raise ValueError("Remove the trailing semicolon from DB_NAME.")
 
-        self.SEED_SAMPLE_DATA = env_bool("SEED_SAMPLE_DATA", self.APP_ENV != "production")
-        self.DEMO_VERIFICATION = env_bool("DEMO_VERIFICATION", self.APP_ENV != "production" and not self.DB_HOST)
-        if self.DEMO_VERIFICATION and (self.APP_ENV == "production" or self.DB_HOST):
-            raise ValueError("Demo verification is available only with a local development database.")
+        tidb = self.DB_HOST.endswith(".tidbcloud.com")
+        try:
+            port = int(os.getenv("DB_PORT", "4000" if tidb else "3306"))
+        except ValueError:
+            raise ValueError("DB_PORT must be an integer.") from None
+        if not 1 <= port <= 65535:
+            raise ValueError("DB_PORT must be between 1 and 65535.")
+        self.SQLALCHEMY_DATABASE_URI = URL.create(
+            "mysql+pymysql", host=self.DB_HOST, port=port,
+            username=self.DB_USER, password=self.DB_PASSWORD, database=self.DB_NAME,
+            query={"charset": "utf8mb4"},
+        )
+
+        self.DB_SSL = env_bool("DB_SSL", True)
+        connect_args = {"connect_timeout": 10, "read_timeout": 30, "write_timeout": 30}
+        if self.DB_SSL:
+            ca_value = os.getenv("DB_CA_PATH", "").strip()
+            ca_path = Path(ca_value).expanduser() if ca_value else Path(certifi.where())
+            if not ca_path.is_absolute():
+                ca_path = BACKEND_DIR / ca_path
+            if not ca_path.is_file():
+                raise ValueError("DB_CA_PATH must point to an existing CA certificate file.")
+            connect_args.update(
+                ssl_verify_cert=True, ssl_verify_identity=True, ssl_ca=str(ca_path.resolve()),
+            )
+        elif tidb:
+            raise ValueError("TiDB Cloud requires DB_SSL=1.")
+        self.SQLALCHEMY_ENGINE_OPTIONS = {"pool_pre_ping": True, "connect_args": connect_args}
+
+        self.SEED_SAMPLE_DATA = env_bool("SEED_SAMPLE_DATA")
+        self.DEMO_VERIFICATION = env_bool("DEMO_VERIFICATION")
+        if self.DEMO_VERIFICATION and (self.APP_ENV == "production" or self.DB_HOST not in LOCAL_DB_HOSTS):
+            raise ValueError("Demo verification requires a local MySQL database in development or testing.")
         self.TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID", "").strip()
         self.TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN", "").strip()
         self.TWILIO_VERIFY_SERVICE_SID = os.getenv("TWILIO_VERIFY_SERVICE_SID", "").strip()
         twilio = (self.TWILIO_ACCOUNT_SID, self.TWILIO_AUTH_TOKEN, self.TWILIO_VERIFY_SERVICE_SID)
         if any(twilio) and not all(twilio):
             raise ValueError("Set all three TWILIO_* values to enable SMS verification.")
+        self.RESEND_API_KEY = os.getenv("RESEND_API_KEY", "").strip()
+        self.RESEND_FROM_EMAIL = os.getenv("RESEND_FROM_EMAIL", "").strip()
+        if bool(self.RESEND_API_KEY) != bool(self.RESEND_FROM_EMAIL):
+            raise ValueError("Set RESEND_API_KEY and RESEND_FROM_EMAIL together to enable email verification.")
         # Reserved for the future account/admin flow; no administrator is created at startup.
         self.ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "").strip()
         self.ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "")

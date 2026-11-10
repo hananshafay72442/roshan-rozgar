@@ -10,10 +10,12 @@ from .services.verification import check_sms_service
 def register_commands(app):
     @app.cli.command("init-marketplace")
     def init_marketplace():
-        """Create the marketplace schema and optionally install demo records."""
+        """Create or upgrade the marketplace schema and optionally install demo records."""
+        from .account_schema import upgrade_account_email_schema
         from .services.marketplace import seed_catalog
 
         try:
+            upgrade_account_email_schema()
             db.create_all()
             if app.config["SEED_SAMPLE_DATA"]:
                 seed_catalog()
@@ -25,8 +27,6 @@ def register_commands(app):
     @app.cli.command("check-db")
     def check_db():
         """Verify the configured database with a read-only SELECT 1."""
-        if app.config.get("DB_HOST", "").endswith(".tidbcloud.com") and not app.config.get("DB_PASSWORD"):
-            raise click.ClickException("DB_PASSWORD is empty. Set the TiDB password in backend/.env first.")
         try:
             with db.engine.connect() as connection:
                 connection.execute(text("SELECT 1"))

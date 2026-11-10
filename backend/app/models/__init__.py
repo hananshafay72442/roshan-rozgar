@@ -12,13 +12,13 @@ def utc_now():
 
 class Account(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    phone = db.Column(db.String(16), nullable=False, unique=True)
+    phone = db.Column(db.String(16), unique=True)
+    email = db.Column(db.String(254), unique=True)
     role = db.Column(db.String(12), nullable=False)
     verification = db.Column(db.String(8), nullable=False)
 
 
-class VerificationChallenge(db.Model):
-    phone = db.Column(db.String(16), primary_key=True)
+class _CodeChallenge:
     token = db.Column(db.String(32), nullable=False, unique=True)
     intent = db.Column(db.String(8), nullable=False)
     role = db.Column(db.String(12), nullable=True)
@@ -27,6 +27,14 @@ class VerificationChallenge(db.Model):
     issued_at = db.Column(db.Integer, nullable=False)
     attempts = db.Column(db.Integer, nullable=False, default=0)
     used = db.Column(db.Boolean, nullable=False, default=False)
+
+
+class VerificationChallenge(_CodeChallenge, db.Model):
+    phone = db.Column(db.String(16), primary_key=True)
+
+
+class EmailVerificationChallenge(_CodeChallenge, db.Model):
+    email = db.Column(db.String(254), primary_key=True)
 
 
 class RateBucket(db.Model):
@@ -66,7 +74,7 @@ class Message(db.Model):
     booking_id = db.Column(db.Integer, db.ForeignKey("booking.id"), nullable=False, index=True)
     sender_id = db.Column(db.Integer, db.ForeignKey("account.id"), nullable=False)
     text = db.Column(db.String(1000), nullable=False, default="")
-    audio = deferred(db.Column(db.LargeBinary().with_variant(MEDIUMBLOB(), "mysql")))
+    audio = deferred(db.Column(MEDIUMBLOB))
     audio_mime = db.Column(db.String(20))
     created_at = db.Column(db.DateTime, nullable=False, default=utc_now)
 

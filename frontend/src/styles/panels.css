@@ -20,6 +20,7 @@ body:has(dialog[open]) { overflow: hidden; }
 .panel-form { display: grid; gap: 13px; }
 .panel-form > .button-secondary, .panel-form > .voice-input { justify-self: start; }
 .panel-form > .ripple-button { justify-self: start; }
+.auth-code-deck { overflow-wrap: anywhere; }
 .form-field { display: grid; min-width: 0; gap: 6px; font-size: .85rem; font-weight: 770; }
 .form-field span[lang='ur'] { justify-self: start; color: var(--muted); }
 .form-field input, .form-field textarea, .form-field select {
@@ -68,16 +69,16 @@ body:has(dialog[open]) { overflow: hidden; }
 .profile-progress { display: flex; gap: 4px; }
 .profile-progress > span { flex: 1; height: 4px; border-radius: 5px; background: var(--line); }
 .profile-progress .filled { background: var(--accent-ink); }
-.profile-choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+.profile-choices, .auth-methods { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
 .profile-numbers { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
-.profile-choice {
+.profile-choice, .auth-method {
   min-height: 49px; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 5px;
   border: 1px solid var(--control-line); border-radius: 8px; background: var(--raised);
   color: var(--ink); font-size: .84rem; font-weight: 740; text-align: start;
 }
-.profile-choice svg { color: var(--accent-ink); flex: none; }
+.profile-choice svg, .auth-method svg { color: var(--accent-ink); flex: none; }
 .profile-choice small { display: block; color: var(--muted); }
-.profile-choice[aria-pressed='true'] { background: var(--orange-soft); border-color: var(--accent-ink); color: var(--accent-ink); }
+:is(.profile-choice, .auth-method)[aria-pressed='true'] { background: var(--orange-soft); border-color: var(--accent-ink); color: var(--accent-ink); }
 .profile-preview { margin: 0; display: grid; gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
 .profile-preview div { display: grid; grid-template-columns: 1fr 2fr; gap: 6px; padding: 8px 10px; background: var(--surface); }
 .profile-preview dt { color: var(--muted); font-size: .83rem; }
