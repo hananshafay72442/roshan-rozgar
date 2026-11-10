@@ -1,19 +1,29 @@
+import { useMemo } from 'react'
 import Icon from './Icon'
+import GlassNavbar from './GlassNavbar/GlassNavbar'
 
-export default function SiteHeader() {
-  return (
-    <header className="site-header">
-      <div className="container header-inner">
-        <a className="brand" href="#" aria-label="Roshan Rozgar home">
-          <span className="brand-mark"><Icon name="sun" size={25} /></span>
-          <span>Roshan <span className="text-ember">Rozgar</span></span>
-        </a>
-        <nav aria-label="Main navigation">
-          <a href="#workers">Find a worker</a>
-          <a href="#how-it-works">How it works</a>
-          <a className="nav-worker" href="#for-workers">For workers <Icon name="arrow" size={16} /></a>
-        </nav>
-      </div>
-    </header>
-  )
+const links = [
+  { href: '#workers', label: 'Find a worker' },
+  { href: '#services', label: 'Explore trades' },
+  { href: '#how-it-works', label: 'How it works' },
+]
+
+export function BrandMark() {
+  return <span className="brand-mark"><Icon name="sun" size={22} /></span>
+}
+
+export default function SiteHeader({ user, openAuth, openWorkspace }) {
+  const actions = useMemo(() => {
+    const onClick = (callback) => (event) => { event.preventDefault(); callback() }
+    return user
+      ? { action: { href: '#account', label: user.role === 'worker' ? 'Worker workspace' : 'My requests', onClick: onClick(openWorkspace) } }
+      : {
+          action: { href: '#join', label: 'Get started', onClick: onClick(() => openAuth('register')) },
+          secondaryAction: { href: '#sign-in', label: 'Sign in', onClick: onClick(() => openAuth('login')) },
+        }
+  }, [user, openAuth, openWorkspace])
+
+  return <GlassNavbar className="roshan-navbar" brand="Roshan Rozgar" brandHref="#top"
+    brandIcon={<BrandMark />} links={links} menuNote="Skilled work, close to home."
+    routeKey={user?.role} {...actions} />
 }

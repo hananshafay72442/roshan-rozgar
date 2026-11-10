@@ -13,6 +13,12 @@ class AIServiceError(RuntimeError):
 def generate_text(prompt, *, system_instruction=None):
     if not isinstance(prompt, str) or not prompt.strip():
         raise ValueError("A non-empty prompt is required.")
+    return generate_content(prompt, types.GenerateContentConfig(
+        system_instruction=system_instruction, max_output_tokens=512,
+    ))
+
+
+def generate_content(contents, options):
     api_key = current_app.config.get("GEMINI_API_KEY")
     if not api_key:
         raise AIServiceError("Set GEMINI_API_KEY in backend/.env to enable Gemini.")
@@ -28,10 +34,7 @@ def generate_text(prompt, *, system_instruction=None):
         ) as client:
             response = client.models.generate_content(
                 model=current_app.config["GEMINI_MODEL"],
-                contents=prompt,
-                config=types.GenerateContentConfig(
-                    system_instruction=system_instruction, max_output_tokens=512,
-                ),
+                contents=contents, config=options,
             )
             result = response.text
     except errors.APIError as error:

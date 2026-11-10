@@ -20,6 +20,8 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = "Lax"
+    PERMANENT_SESSION_LIFETIME = 60 * 60 * 24 * 7
+    MAX_CONTENT_LENGTH = 1_600_000
     FRONTEND_DIST = BACKEND_DIR.parent / "frontend" / "dist"
 
     def __init__(self):
@@ -71,7 +73,16 @@ class Config:
                 raise ValueError("Set DB_HOST for production. SQLite fallback is for local development.")
             self.SQLALCHEMY_DATABASE_URI = "sqlite:///roshan_rozgar.db"
 
-        self.SEED_SAMPLE_DATA = env_bool("SEED_SAMPLE_DATA", True)
+        self.SEED_SAMPLE_DATA = env_bool("SEED_SAMPLE_DATA", self.APP_ENV != "production")
+        self.DEMO_VERIFICATION = env_bool("DEMO_VERIFICATION", self.APP_ENV != "production" and not self.DB_HOST)
+        if self.DEMO_VERIFICATION and (self.APP_ENV == "production" or self.DB_HOST):
+            raise ValueError("Demo verification is available only with a local development database.")
+        self.TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID", "").strip()
+        self.TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN", "").strip()
+        self.TWILIO_VERIFY_SERVICE_SID = os.getenv("TWILIO_VERIFY_SERVICE_SID", "").strip()
+        twilio = (self.TWILIO_ACCOUNT_SID, self.TWILIO_AUTH_TOKEN, self.TWILIO_VERIFY_SERVICE_SID)
+        if any(twilio) and not all(twilio):
+            raise ValueError("Set all three TWILIO_* values to enable SMS verification.")
         # Reserved for the future account/admin flow; no administrator is created at startup.
         self.ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "").strip()
         self.ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "")

@@ -7,6 +7,12 @@
     <meta name="theme-color" content="#ffffff" />
     <meta name="description" content="Find local electricians, plumbers, and skilled trade workers in Islamabad and Rawalpindi with Roshan Rozgar." />
     <title>Roshan Rozgar — Local skills, closer to home</title>
+    <meta name="theme-color" content="#ffffff" />
+    <script>
+      try {
+        document.documentElement.dataset.theme = localStorage.getItem('roshan-theme') === 'dark' ? 'dark' : 'light'
+      } catch { document.documentElement.dataset.theme = 'light' }
+    </script>
   </head>
   <body>
     <div id="root"></div>

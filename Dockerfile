@@ -16,4 +16,4 @@ RUN useradd --create-home appuser && chown -R appuser:appuser /app
 USER appuser
 WORKDIR /app/backend
 EXPOSE 8000
-CMD ["sh", "-c", "exec gunicorn --bind 0.0.0.0:${PORT:-8000} --workers 2 --access-logfile - --error-logfile - wsgi:app"]
+CMD ["sh", "-c", "exec gunicorn --bind 0.0.0.0:${PORT:-8000} --workers 2 --preload --access-logfile - --error-logfile - wsgi:app"]

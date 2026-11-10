@@ -1,8 +1,8 @@
 .ripple-button {
-  --ripple-color: var(--ember, #bb410e);
-  --ripple-border: var(--ember, #bb410e);
-  --ripple-surface: #fff;
-  --ripple-hover-text: #fff;
+  --ripple-color: var(--accent-ink);
+  --ripple-border: var(--accent-ink);
+  --ripple-surface: var(--raised);
+  --ripple-hover-text: var(--paper);
   --ripple-x: 50%;
   --ripple-y: 50%;
   --ripple-size: 250px;
@@ -18,15 +18,16 @@
   border-radius: 6px;
   background: var(--ripple-surface);
   color: var(--ripple-color);
-  font: 600 14px/1.4 "Segoe UI", Arial, sans-serif;
+  font: 750 .91rem/1.4 var(--font-body);
   text-decoration: none;
   cursor: pointer;
 }
 
 .ripple-button.button-primary {
-  --ripple-surface: var(--ember, #bb410e);
-  --ripple-color: #96300a;
-  color: #fff;
+  --ripple-surface: var(--orange);
+  --ripple-color: var(--orange-hover);
+  --ripple-hover-text: var(--on-orange);
+  color: var(--on-orange);
 }
 
 .ripple-button__fill {
@@ -68,7 +69,7 @@
 }
 
 .ripple-button:focus-visible {
-  outline: 2px solid var(--ember, #bb410e);
+  outline: 2px solid var(--accent-ink);
   outline-offset: 4px;
 }
 
