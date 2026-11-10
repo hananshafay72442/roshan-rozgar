@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { useLanguage } from '../i18n/LanguageProvider'
 import useCatalog from '../hooks/useCatalog'
 import Icon from '../components/Icon'
@@ -24,12 +25,26 @@ const noServices = []
 
 export default function HomePage({ revision, onRequest, onReviews, onJoinWorker }) {
   const { t } = useLanguage()
+  const hero = useRef(null)
+  const workerSection = useRef(null)
   const [city, setCity] = useState('Islamabad')
   const [area, setArea] = useState('')
   const [service, setService] = useState('')
   const [available, setAvailable] = useState(true)
   const { catalog, workers, loading, error, retry } = useCatalog({ city, area, service, available }, revision)
   const services = catalog?.services || noServices
+
+  useEffect(() => {
+    // Catalog results and loaded fonts can move the headings below them.
+    let frame
+    const observer = new ResizeObserver(() => {
+      cancelAnimationFrame(frame)
+      frame = requestAnimationFrame(() => ScrollTrigger.refresh())
+    })
+    observer.observe(hero.current)
+    observer.observe(workerSection.current)
+    return () => { observer.disconnect(); cancelAnimationFrame(frame) }
+  }, [])
 
   function chooseTrade(id) {
     setService(id)
@@ -38,7 +53,7 @@ export default function HomePage({ revision, onRequest, onReviews, onJoinWorker 
 
   return (
     <main id="main" tabIndex={-1}>
-      <section className="hero container" id="top" data-hero-pointer-area aria-labelledby="hero-title">
+      <section ref={hero} className="hero container" id="top" data-hero-pointer-area aria-labelledby="hero-title">
         <div className="hero-copy">
           <p className="hero-locale"><Icon name="pin" size={17} /> {t('Islamabad & Rawalpindi')}</p>
           <h1 id="hero-title">{t('Skilled hands.')}<br /><span>{t('Closer to home.')}</span></h1>
@@ -63,7 +78,7 @@ export default function HomePage({ revision, onRequest, onReviews, onJoinWorker 
 
       <TradeRail services={services} selected={service} onSelect={chooseTrade} />
 
-      <section className="container worker-section" id="workers" aria-labelledby="workers-title">
+      <section ref={workerSection} className="container worker-section" id="workers" aria-labelledby="workers-title">
         <div className="section-heading">
           <div><p className="eyebrow">02 <span /> {t('Find someone nearby')}</p><h2 id="workers-title">{t('Local workers.')}</h2></div>
           <p className="section-deck">{t('Choose your neighbourhood to see who’s closest and ready to help.')}</p>

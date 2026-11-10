@@ -1,4 +1,4 @@
-"""Upgrade databases created before accounts could register by email."""
+"""Upgrade the account table without replacing existing accounts."""
 
 from sqlalchemy import inspect
 
@@ -21,4 +21,6 @@ def upgrade_account_email_schema():
             connection.exec_driver_sql("CREATE UNIQUE INDEX uq_account_email ON account (email)")
         if not columns["phone"]["nullable"]:
             connection.exec_driver_sql("ALTER TABLE account MODIFY COLUMN phone VARCHAR(16) NULL")
+        if "password_hash" not in columns:
+            connection.exec_driver_sql("ALTER TABLE account ADD COLUMN password_hash VARCHAR(255) NULL")
         connection.commit()

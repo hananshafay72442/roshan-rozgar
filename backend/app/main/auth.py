@@ -6,6 +6,7 @@ import time
 from flask import abort, current_app, request, session
 from sqlalchemy import update
 from sqlalchemy.exc import IntegrityError
+from werkzeug.security import check_password_hash, generate_password_hash
 
 from . import main_bp
 from ..extensions import db
@@ -16,6 +17,8 @@ from ..services.verification import (
 
 CODE_LIFETIME = 600
 CODE_ATTEMPTS = 5
+PASSWORD_MIN_LENGTH = 8
+PASSWORD_MAX_LENGTH = 128
 
 CONTACTS = {
     "email": ("email", EmailVerificationChallenge, normalize_email, "Enter a valid email address."),
@@ -76,6 +79,45 @@ def verify_csrf():
 @main_bp.get("/session")
 def get_session():
     return session_data()
+
+
+def start_session(account):
+    account_id = account.id
+    session.clear()
+    session["account_id"] = account_id
+    session.permanent = True
+    return session_data()
+
+
+@main_bp.post("/auth/password")
+def authenticate_password():
+    data = json_body()
+    email = normalize_email(data.get("email"))
+    password = data.get("password")
+    intent, role = data.get("intent"), data.get("role")
+    if not email:
+        abort(400, description="Enter a valid email address.")
+    if intent not in ("register", "login") or (intent == "register" and role not in ("customer", "worker")):
+        abort(400, description="Choose to sign in or pick an account type to register.")
+    if not isinstance(password, str) or not PASSWORD_MIN_LENGTH <= len(password) <= PASSWORD_MAX_LENGTH:
+        abort(400, description="Use a password between 8 and 128 characters.")
+    reserve_quota("password-ip", request.remote_addr or "unknown", 30, 600)
+    reserve_quota("password-email", email, 10, 600)
+
+    if intent == "login":
+        account = db.session.scalar(db.select(Account).where(Account.email == email))
+        if not account or not account.password_hash or not check_password_hash(account.password_hash, password):
+            abort(401, description="Email or password is incorrect.")
+        return start_session(account)
+
+    account = Account(email=email, password_hash=generate_password_hash(password), role=role, verification="none")
+    db.session.add(account)
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        abort(409, description="An account already exists for this email. Sign in instead.")
+    return start_session(account), 201
 
 
 @main_bp.post("/auth/code")
@@ -172,6 +214,9 @@ def verify_code():
     if not consumed.rowcount:
         abort(409, description="This code was already used. Request a new code.")
     account = db.session.scalar(db.select(Account).where(getattr(Account, field) == address))
+    if account and account.password_hash:
+        db.session.commit()
+        abort(403, description="This account uses a password. Sign in with your password.")
     if account and account.verification in ("sms", "email") and challenge.method != account.verification:
         db.session.commit()
         abort(403, description=(
@@ -195,12 +240,15 @@ def verify_code():
         db.session.add(account)
     elif challenge.method != "demo":
         account.verification = challenge.method
-    db.session.commit()
-    account_id = account.id
-    session.clear()
-    session["account_id"] = account_id
-    session.permanent = True
-    return session_data()
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        abort(409, description=(
+            "An account already exists for this email. Sign in instead." if channel == "email"
+            else "An account already exists for this number. Sign in instead."
+        ))
+    return start_session(account)
 
 
 @main_bp.post("/auth/logout")

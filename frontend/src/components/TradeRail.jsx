@@ -84,8 +84,9 @@ export default function TradeRail({ services, selected, onSelect }) {
     if (travel < 1) return
     const next = Math.max(0, Math.min(travel, Math.abs(viewport.scrollLeft) + stepDirection * step))
     const behavior = matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth'
-    if (pin.current?.isActive) {
-      const { start, end } = pin.current
+    const trigger = pin.current
+    if (trigger && window.scrollY <= trigger.end + 1) {
+      const { start, end } = trigger
       window.scrollTo({ top: start + (next / travel) * (end - start), behavior })
     } else {
       viewport.scrollTo({ left: direction * next, behavior })

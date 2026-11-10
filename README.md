@@ -7,7 +7,7 @@ Built with React, Vite, GSAP, Flask, SQLAlchemy, and MySQL.
 
 | Outcome | What to demonstrate |
 | --- | --- |
-| Onboarding | Register as a worker with a one-time email code or SMS. Record a short introduction in Urdu, Roman Urdu or English. Gemini extracts the name, trade, neighbourhood and experience. Listen to or check the draft, correct any gaps, then publish. The guided path offers trade icons, tap choices and speech prompts. |
+| Onboarding | Register as a worker with an email address and password, or choose SMS. Record a short introduction in Urdu, Roman Urdu or English. Gemini extracts the name, trade, neighbourhood and experience. Listen to or check the draft, correct any gaps, then publish. The guided path offers trade icons, tap choices and speech prompts. |
 | Discovery | Choose a city, neighbourhood and trade. Browse available workers in approximate distance order and open reviews. |
 | Communication | Request a worker. Both accounts can exchange text or playable voice notes. The worker sends a quote in PKR and the customer sees that exact price before accepting. |
 | Booking | Accept the quote. The worker becomes booked in the same database transaction and a second customer cannot confirm them. Completing or cancelling the booking releases the worker according to their availability setting. |
@@ -46,13 +46,13 @@ starts Flask on port 5000 and Vite proxies requests to it.
 To run the compiled site and API together, run `npm run build` from the root
 and `python -m flask --app wsgi:app run` from `backend/` using the virtual
 environment. Flask serves the built frontend. The existing Dockerfile also
-builds both and runs Gunicorn on port 8000 by default.
+builds both, initializes the database schema, and runs Gunicorn on port 8000 by default.
 
 ## Verification, AI and deployment
 
 | Setting | Purpose |
 | --- | --- |
-| `RESEND_API_KEY`, `RESEND_FROM_EMAIL` | Enable real passwordless email sign-up and sign-in. Email is the default choice for both account types. |
+| `RESEND_API_KEY`, `RESEND_FROM_EMAIL` | Optional delivery settings for existing accounts that sign in with an email code. Email and password work without a sender. |
 | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_VERIFY_SERVICE_SID` | Enable real passwordless SMS sign-up and sign-in with a six-digit Twilio Verify service. All three are required for live SMS. |
 | `DEMO_VERIFICATION` | Set to `1` for on-screen demo codes on a local MySQL database in development or testing. The default is `0`. |
 | `GEMINI_API_KEY`, `GEMINI_MODEL` | Enable voice-to-profile extraction through the Google Gemini Developer API. The default model is `gemini-3.5-flash-lite`. Choose a model your Google project can use for audio input. |
@@ -65,25 +65,26 @@ builds both and runs Gunicorn on port 8000 by default.
 Gemini request to check model access and quota. Both are Flask commands
 available from `backend/` with the same `--app wsgi:app` flag.
 
-Run `python -m flask --app wsgi:app init-marketplace` from `backend/`
-before starting the app against a new database or upgrading an existing
-one. The database user running it needs schema creation and alteration
-privileges. The upgrade preserves existing phone accounts, profiles, and
-jobs. Existing users can choose **Phone (SMS)** to sign in. Email registration
-creates a separate account.
+On deployments that start Flask or Gunicorn directly, run
+`python -m flask --app wsgi:app init-marketplace` from `backend/` before
+starting the app. The database user running it needs schema creation and
+alteration privileges. The upgrade preserves existing accounts, profiles,
+and jobs. New email accounts use passwords and have no email verification
+badge. Existing phone accounts can still choose **Phone (SMS)**.
 
-### Turn on live email verification
+### Configure email delivery for existing code-based accounts
 
 1. Create a [Resend account](https://resend.com/). Add and verify a sending
    domain you own in the [Domains dashboard](https://resend.com/domains).
 2. Create a sending API key and set it as `RESEND_API_KEY` in the backend
    host’s environment. Set `RESEND_FROM_EMAIL` to a sender on the verified
    domain, such as `Roshan Rozgar <verify@example.com>`.
-3. Redeploy the backend. Choose **Email** at sign-up and confirm that the
-   six-digit code arrives and signs you in.
+3. Redeploy the backend. Existing email-code users can select **Use an email
+   code** on the sign-in form.
 
 For a local delivery test, Resend’s `onboarding@resend.dev` sender can send
-codes to your Resend account email. Public sign-ups require a verified domain.
+codes to your Resend account email. Sending codes to other addresses requires
+a verified domain.
 
 ### Turn on live SMS verification
 

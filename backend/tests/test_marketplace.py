@@ -13,7 +13,7 @@ from sqlalchemy.engine import make_url
 from app import create_app
 from app.config import LOCAL_DB_HOSTS, Config
 from app.extensions import db
-from app.models import RateBucket
+from app.models import Account, RateBucket
 
 
 def wav_data():
@@ -120,6 +120,25 @@ class MarketplaceTests(unittest.TestCase):
                 self.assertEqual(self.post(client, "/auth/code", {"phone": payload["phone"], "intent": "login"}).status_code, 201)
                 self.assertEqual(self.post(client, "/auth/verify", {"code": "987654"}).json["user"]["role"], "worker")
 
+    def test_password_registration_and_login_without_email_delivery(self):
+        self.app.config.update(DEMO_VERIFICATION=False, RESEND_API_KEY="", RESEND_FROM_EMAIL="")
+        client = self.app.test_client()
+        payload = {"email": "Customer@EXAMPLE.COM", "password": "test-only-password", "role": "customer", "intent": "register"}
+        self.assertEqual(client.get("/api/session").json["verification_modes"]["email"], "unavailable")
+        result = self.post(client, "/auth/password", payload)
+        self.assertEqual(result.status_code, 201, result.json)
+        self.assertEqual(result.json["user"]["role"], "customer")
+        self.assertEqual(result.json["user"]["verification"], "none")
+        with self.app.app_context():
+            account = db.session.scalar(db.select(Account).where(Account.email == "customer@example.com"))
+            self.assertTrue(account.password_hash.startswith("scrypt:"))
+            self.assertNotIn(payload["password"], account.password_hash)
+        self.assertEqual(self.post(self.app.test_client(), "/auth/password", payload).status_code, 409)
+        self.assertIsNone(self.post(client, "/auth/logout").json["user"])
+        login = {"email": "customer@example.com", "password": payload["password"], "intent": "login"}
+        self.assertEqual(self.post(client, "/auth/password", login | {"password": "wrong-password"}).status_code, 401)
+        self.assertEqual(self.post(client, "/auth/password", login).json["user"]["role"], "customer")
+
     def test_live_email_code_creates_an_account_and_signs_it_back_in(self):
         self.app.config.update(RESEND_API_KEY="test-key", RESEND_FROM_EMAIL="verify@example.com")
         client = self.app.test_client()
@@ -141,6 +160,8 @@ class MarketplaceTests(unittest.TestCase):
             verified = self.post(client, "/auth/verify", {"code": "482716"})
             self.assertEqual(verified.status_code, 200, verified.json)
             self.assertEqual(verified.json["user"]["verification"], "email")
+            password_attempt = payload | {"password": "test-only-password"}
+            self.assertEqual(self.post(self.app.test_client(), "/auth/password", password_attempt).status_code, 409)
             self.assertEqual(self.post(client, "/auth/verify", {"code": "482716"}).status_code, 400)
             self.assertIsNone(self.post(client, "/auth/logout").json["user"])
 
@@ -176,7 +197,7 @@ class MarketplaceTests(unittest.TestCase):
         job_id = created.json["job"]["id"]
         with self.app.app_context(), db.engine.begin() as connection:
             connection.exec_driver_sql("DROP TABLE email_verification_challenge")
-            connection.exec_driver_sql("ALTER TABLE account DROP COLUMN email, MODIFY COLUMN phone VARCHAR(16) NOT NULL")
+            connection.exec_driver_sql("ALTER TABLE account DROP COLUMN email, DROP COLUMN password_hash, MODIFY COLUMN phone VARCHAR(16) NOT NULL")
         self.initialize_database()
         self.initialize_database()
         client = self.app.test_client()
