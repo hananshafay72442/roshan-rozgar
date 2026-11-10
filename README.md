@@ -156,6 +156,44 @@ indicate a real code was verified. The worker’s contact details stay private.
 
 ## Checks
 
+### Signed-in home and password entry
+
+After sign-in, the hero shows the account's active requests, quotes, bookings and
+completed jobs awaiting a customer review. Opening a request uses the existing
+private job workspace. The summary refreshes while the page is visible. Email
+registration requires matching passwords and offers a show-password control;
+existing password accounts and SMS sign-in continue using the same endpoints.
+
+### Groq voice onboarding
+
+Set `GROQ_API_KEY` only in the backend environment to use Groq for voice profiles.
+When configured, Groq Whisper (`GROQ_SPEECH_MODEL=whisper-large-v3-turbo`)
+transcribes the recording and `GROQ_MODEL=openai/gpt-oss-20b` extracts a profile.
+The existing validation and confirmation step still apply. Without a Groq key,
+the existing Gemini path is used. Guided setup remains available on provider errors.
+Recordings and transcripts are sent to the selected provider only when the worker
+requests assistance. No key belongs in frontend code or the repository.
+Services: [Groq speech recognition](https://console.groq.com/docs/speech-to-text)
+and [Groq structured text](https://console.groq.com/docs/structured-outputs).
+
+## Running the checks
+
+### Requirements review (10 November 2026)
+
+| PDF outcome | Implemented flow | Remaining live checks |
+| --- | --- | --- |
+| Low-literacy onboarding | SMS path, spoken prompts, guided profile and AI voice draft with confirmation | Live SMS needs Twilio configuration; AI needs a working provider key |
+| Nearby, available discovery | Trade/city/neighbourhood filtering, approximate distance and current availability | Phone layout on the reported device |
+| Accessible communication and price agreement | Participant-only text/audio messages and explicit quote acceptance | Two-role live voice recording on a real phone |
+| Consistent booking | Transactional reservation, conflict protection and availability release | Dedicated local MySQL integration suite |
+| Trust after the job | One customer review per completed booking and public ratings | Full two-role judging walkthrough |
+
+Deployment smoke checks verified customer and worker email/password signup,
+logout and sign-in using new synthetic QA accounts. One initial worker sign-in
+returned HTTP 500; a repeat worker flow passed. This intermittent server error
+still needs deployment logs if it recurs. SMS reported unavailable before these
+changes. Existing accounts, database schema and SMS settings were not changed.
+
 Create an empty local MySQL database named `roshan_test` and grant a test
 user privileges on that schema. Set `TEST_MYSQL_URL` to its connection URL,
 such as `mysql+pymysql://test_user:test_password@127.0.0.1:3306/roshan_test`.

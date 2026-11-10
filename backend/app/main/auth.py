@@ -64,7 +64,7 @@ def session_data():
         "verification_mode": mode,
         "verification_modes": {"email": verification_mode("email"), "sms": mode},
         "demo_data": current_app.config["SEED_SAMPLE_DATA"],
-        "voice_profile": bool(current_app.config["GEMINI_API_KEY"]),
+        "voice_profile": bool(current_app.config.get("GROQ_API_KEY") or current_app.config["GEMINI_API_KEY"]),
     }
 
 

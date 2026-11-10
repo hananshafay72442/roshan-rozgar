@@ -8,6 +8,7 @@ import ScrollDrops from '../components/ScrollDrops/ScrollDrops'
 import RippleButton from '../components/RippleButton/RippleButton'
 import TradeRail from '../components/TradeRail'
 import WorkerCard from '../components/WorkerCard'
+import AccountHome from '../components/AccountHome'
 import '../styles/home.css'
 
 const reasons = [
@@ -23,7 +24,7 @@ const steps = [
 const fallbackCities = ['Islamabad', 'Rawalpindi']
 const noServices = []
 
-export default function HomePage({ revision, onRequest, onReviews, onJoinWorker }) {
+export default function HomePage({ revision, user, call, onOpenWorkspace, onRequest, onReviews, onJoinWorker }) {
   const { t } = useLanguage()
   const hero = useRef(null)
   const workerSection = useRef(null)
@@ -53,7 +54,8 @@ export default function HomePage({ revision, onRequest, onReviews, onJoinWorker 
 
   return (
     <main id="main" tabIndex={-1}>
-      <section ref={hero} className="hero container" id="top" data-hero-pointer-area aria-labelledby="hero-title">
+      <section ref={hero} className={`hero container${user ? ' hero-signed-in' : ''}`} id="top" data-hero-pointer-area aria-labelledby="hero-title">
+        {user ? <AccountHome key={user.id} user={user} call={call} revision={revision} onOpen={onOpenWorkspace} /> : <>
         <div className="hero-copy">
           <p className="hero-locale"><Icon name="pin" size={17} /> {t('Islamabad & Rawalpindi')}</p>
           <h1 id="hero-title">{t('Skilled hands.')}<br /><span>{t('Closer to home.')}</span></h1>
@@ -65,6 +67,7 @@ export default function HomePage({ revision, onRequest, onReviews, onJoinWorker 
           <p className="hero-urdu" lang="ur" dir="rtl">ہنر مند لوگ، آپ کے قریب</p>
         </div>
         <HeroVisual />
+        </>}
       </section>
 
       <div className="container">
@@ -138,7 +141,7 @@ export default function HomePage({ revision, onRequest, onReviews, onJoinWorker 
         </div>
       </ScrollDrops>
 
-      <section className="container" id="for-workers" aria-labelledby="worker-intro-title">
+      {!user && <section className="container" id="for-workers" aria-labelledby="worker-intro-title">
         <div className="worker-intro">
           <div>
             <p className="eyebrow">{t('For tradespeople')}</p>
@@ -152,7 +155,7 @@ export default function HomePage({ revision, onRequest, onReviews, onJoinWorker 
             <span>{t('Build a profile in your own words')}</span>
           </div>
         </div>
-      </section>
+      </section>}
     </main>
   )
 }

@@ -27,6 +27,8 @@ export default function AuthPanel({ initialMode, initialRole, session, call, onS
   const [emailCode, setEmailCode] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [phone, setPhone] = useState('')
   const [code, setCode] = useState('')
   const [challenge, setChallenge] = useState(null)
@@ -43,6 +45,10 @@ export default function AuthPanel({ initialMode, initialRole, session, call, onS
 
   async function submit(event) {
     event.preventDefault()
+    if (usePassword && mode === 'register' && password !== confirmPassword) {
+      setError('Passwords do not match.')
+      return
+    }
     setBusy(true)
     setError('')
     try {
@@ -95,7 +101,7 @@ export default function AuthPanel({ initialMode, initialRole, session, call, onS
           <div className="auth-methods" role="group" aria-label={t('Sign-in method')}>
             {methods.map(({ id, title, icon }) => <button key={id} type="button" className="auth-method"
               aria-pressed={channel === id} disabled={busy} onClick={() => {
-                if (channel !== id) { setChannel(id); setEmailCode(false); setPassword(''); setError('') }
+                if (channel !== id) { setChannel(id); setEmailCode(false); setPassword(''); setConfirmPassword(''); setShowPassword(false); setError('') }
               }}>
               <Icon name={icon} size={19} />{t(title)}
             </button>)}
@@ -125,18 +131,28 @@ export default function AuthPanel({ initialMode, initialRole, session, call, onS
                 <input type="email" dir="ltr" autoComplete="email" autoCapitalize="none" placeholder="name@example.com" maxLength={254}
                   required value={email} onChange={(event) => setEmail(event.target.value)} />
               </label>
-              {usePassword && <label className="form-field">{t('Password')}
-                <input type="password" dir="ltr" autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
+              {usePassword && <><label className="form-field">{t('Password')}
+                <input type={showPassword ? 'text' : 'password'} dir="ltr" autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
                   minLength={8} maxLength={128} required value={password} onChange={(event) => setPassword(event.target.value)} />
                 {mode === 'register' && <span className="hint">{t('Use at least 8 characters.')}</span>}
-              </label>}
+              </label>
+                {mode === 'register' && <label className="form-field">{t('Confirm password')}
+                  <input type={showPassword ? 'text' : 'password'} dir="ltr" autoComplete="new-password"
+                    minLength={8} maxLength={128} required value={confirmPassword}
+                    onChange={(event) => setConfirmPassword(event.target.value)} />
+                </label>}
+                <label className="availability-filter password-visibility">
+                  <input type="checkbox" checked={showPassword} onChange={(event) => setShowPassword(event.target.checked)} />
+                  <span>{t('Show password')}</span>
+                </label>
+              </>}
             </>}
             <RippleButton type="submit" className="button-primary" disabled={busy || !session.csrf_token}>
               {t(usePassword ? (busy ? 'Please wait…' : passwordAction) : (busy ? 'Requesting code…' : codeAction))}
             </RippleButton>
           </>}
           {!sms && mode === 'login' && (canUseEmailCode || emailCode) && <button type="button" className="text-button align-start" disabled={busy}
-            onClick={() => { setEmailCode(!emailCode); setPassword(''); setError('') }}>
+            onClick={() => { setEmailCode(!emailCode); setPassword(''); setConfirmPassword(''); setShowPassword(false); setError('') }}>
             {t(emailCode ? 'Use my password' : 'Use an email code')}
           </button>}
           {mode === 'register' && <button type="button" className="text-button align-start" disabled={busy} onClick={() => setRole('')}>{t('Choose a different account type')}</button>}
@@ -150,6 +166,8 @@ export default function AuthPanel({ initialMode, initialRole, session, call, onS
           setRole('')
           setEmailCode(false)
           setPassword('')
+          setConfirmPassword('')
+          setShowPassword(false)
           setError('')
         }}>{t(mode === 'login' ? 'Create an account' : 'Sign in')}</button>
       </div>}

@@ -50,7 +50,7 @@ export default function App() {
     setSession(data)
     if (data.user.role === 'worker' && !data.user.profile_complete) setPanel({ type: 'profile' })
     else if (data.user.role === 'customer' && panel.worker) setPanel({ type: 'request', worker: panel.worker })
-    else setPanel({ type: 'workspace' })
+    else close()
   }
 
   function signedOut(data) {
@@ -62,14 +62,15 @@ export default function App() {
     <>
       <a className="skip-link" href="#main">{t('Skip to content')}</a>
       <SiteHeader user={user} openAuth={openAuth} openWorkspace={openWorkspace} />
-      <HomePage revision={revision} onRequest={requestWorker}
+      <HomePage revision={revision} user={user} call={call}
+        onOpenWorkspace={(job) => setPanel({ type: user?.role === 'worker' && !user.profile_complete ? 'profile' : 'workspace', job })} onRequest={requestWorker}
         onReviews={(worker) => setPanel({ type: 'reviews', worker })}
         onJoinWorker={() => {
           if (!user) openAuth('register', 'worker')
           else if (user.role === 'worker') openWorkspace()
           else setPanel({ type: 'role' })
         }} />
-      <SiteFooter />
+      <SiteFooter user={user} openWorkspace={openWorkspace} />
       <ThemeToggle />
       {panel?.type === 'auth' && (session.csrf_token ? <AuthPanel key={`${panel.mode}:${panel.role}`} initialMode={panel.mode} initialRole={panel.role}
         session={session} call={call} onClose={close} onSuccess={authSuccess} onRetry={() => setSessionAttempt((value) => value + 1)} />
@@ -81,7 +82,7 @@ export default function App() {
       {panel?.type === 'profile' && <ProfilePanel call={call} voiceEnabled={session.voice_profile} onClose={close} onLogout={signedOut}
         onSuccess={(data) => { setSession(data); refreshCatalog(); setPanel({ type: 'workspace' }) }} />}
       {panel?.type === 'workspace' && user && <WorkspacePanel user={user} initialJob={panel.job} call={call}
-        onClose={close} onLogout={signedOut} onCatalogChange={refreshCatalog} />}
+        onClose={() => { refreshCatalog(); close() }} onLogout={signedOut} onCatalogChange={refreshCatalog} />}
       {panel?.type === 'request' && <RequestPanel worker={panel.worker} call={call} onClose={close}
         onSuccess={(job) => setPanel({ type: 'workspace', job })} />}
       {panel?.type === 'reviews' && <ReviewsPanel worker={panel.worker} call={call} onClose={close} />}
