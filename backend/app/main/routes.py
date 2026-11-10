@@ -40,7 +40,7 @@ def workers():
         abort(400, description="Available must be true or false.")
 
     sample_data = current_app.config["SEED_SAMPLE_DATA"]
-    query = db.select(WorkerProfile, Account.verification).join(Account, Account.id == WorkerProfile.user_id)
+    query = db.select(WorkerProfile, Account.verification).join(Account, Account.id == WorkerProfile.user_id).where(WorkerProfile.moderation == "approved")
     if not sample_data:
         query = query.where(WorkerProfile.seed_key.is_(None))
     if city:
@@ -104,8 +104,11 @@ def edit_worker_profile():
     profile = profile_for(account)
     if not profile:
         abort(404, description="Complete your profile and choose an availability setting.")
-    for key, value in validated_profile(json_body()).items():
-        setattr(profile, key, value)
+    details = validated_profile(json_body())
+    if any(getattr(profile, key) != value for key, value in details.items()):
+        profile.moderation = "pending"
+        for key, value in details.items():
+            setattr(profile, key, value)
     db.session.commit()
     return session_data()
 
@@ -114,7 +117,7 @@ def edit_worker_profile():
 def worker_reviews(worker_id):
     account = current_account()
     profile = db.session.get(WorkerProfile, worker_id)
-    if not profile or (profile.seed_key and not current_app.config["SEED_SAMPLE_DATA"]):
+    if not profile or (profile.moderation != "approved" and profile.user_id != account.id) or (profile.seed_key and not current_app.config["SEED_SAMPLE_DATA"]):
         abort(404, description="This worker is no longer listed.")
     if account.role == "customer" and nearby_distance(customer_location(account), profile) is None:
         abort(403, description="Choose a worker within 5 km of your saved neighbourhood.")

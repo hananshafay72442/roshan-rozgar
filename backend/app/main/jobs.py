@@ -14,7 +14,7 @@ OPEN_STATES = {"requested", "quoted", "confirmed"}
 def job_data(job, profile, reviewed):
     return {
         "id": job.id, "worker": worker_data(profile), "state": job.state,
-        "quote_pkr": job.quote_pkr, "reviewed": reviewed is not None,
+        "quote_pkr": job.quote_pkr, "moderation": job.moderation, "reviewed": reviewed is not None,
         "created_at": job.created_at.isoformat() + "Z",
     }
 
@@ -51,7 +51,7 @@ def create_profile():
     account = current_account("worker")
     if profile_for(account):
         abort(409, description="Your worker profile is already complete.")
-    db.session.add(WorkerProfile(user_id=account.id, **validated_profile(json_body())))
+    db.session.add(WorkerProfile(user_id=account.id, moderation="pending", **validated_profile(json_body())))
     try:
         db.session.commit()
     except IntegrityError:
@@ -87,14 +87,14 @@ def request_job():
     if type(worker_id) is not int or not 1 <= worker_id <= 2147483647:
         abort(400, description="Choose a worker to request.")
     profile = db.session.get(WorkerProfile, worker_id)
-    if not profile or (profile.seed_key and not current_app.config["SEED_SAMPLE_DATA"]):
+    if not profile or profile.moderation != "approved" or (profile.seed_key and not current_app.config["SEED_SAMPLE_DATA"]):
         abort(404, description="This worker is no longer listed.")
     if nearby_distance(customer_location(account), profile) is None:
         abort(403, description="Choose a worker within 5 km of your saved neighbourhood.")
     if not profile.available:
         abort(409, description="This worker is unavailable now. Please choose another.")
     values = message_input()
-    job = Booking(customer_id=account.id, worker_id=profile.id)
+    job = Booking(customer_id=account.id, worker_id=profile.id, moderation="pending")
     db.session.add(job)
     db.session.flush()
     add_message(job, account, values)
@@ -123,7 +123,7 @@ def job_detail(job_id):
 def send_message(job_id):
     account = current_account()
     job, _, _ = owned_job(job_id, account)
-    if job.state not in OPEN_STATES:
+    if job.state not in OPEN_STATES or job.moderation != "approved":
         abort(409, description="This conversation is closed.")
     add_message(job, account, message_input())
     db.session.commit()
@@ -147,7 +147,7 @@ def quote_job(job_id):
     if type(price) is not int or not 1 <= price <= 1_000_000:
         abort(400, description="Enter a whole amount between Rs 1 and Rs 1,000,000.")
     checked_update(update(Booking).where(
-        Booking.id == job.id, Booking.state.in_(("requested", "quoted")),
+        Booking.id == job.id, Booking.moderation == "approved", Booking.state.in_(("requested", "quoted")),
     ).values(state="quoted", quote_pkr=price), "This job is no longer open for a quote.")
     db.session.commit()
     return {"state": "quoted"}
@@ -161,7 +161,7 @@ def accept_quote(job_id):
     if type(price) is not int or price < 1:
         abort(400, description="Select the current quote to confirm the booking.")
     checked_update(update(Booking).where(
-        Booking.id == job.id, Booking.state == "quoted", Booking.quote_pkr == price,
+        Booking.id == job.id, Booking.moderation == "approved", Booking.state == "quoted", Booking.quote_pkr == price,
     ).values(state="confirmed"), "The quote changed. Review the latest price and try again.")
     checked_update(update(WorkerProfile).where(
         WorkerProfile.id == profile.id, WorkerProfile.active_booking_id.is_(None),

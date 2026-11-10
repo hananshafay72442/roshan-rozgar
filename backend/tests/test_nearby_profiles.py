@@ -45,7 +45,7 @@ class NearbyProfileTests(unittest.TestCase):
         self.assertEqual(response.json['radius_km'], 5)
 
     def test_direct_request_cannot_bypass_distance_restriction(self):
-        worker = SimpleNamespace(city='Rawalpindi', area='Saddar', seed_key=None)
+        worker = SimpleNamespace(city='Rawalpindi', area='Saddar', seed_key=None, moderation='approved')
         with patch('app.main.jobs.current_account'), \
              patch('app.main.jobs.db.session.get', return_value=worker), \
              patch('app.main.jobs.customer_location', return_value=self.location), \
@@ -55,7 +55,9 @@ class NearbyProfileTests(unittest.TestCase):
         add.assert_not_called()
 
     def test_worker_edit_changes_only_public_profile_fields(self):
-        profile = SimpleNamespace(user_id=7, active_booking_id=99, taking_work=False)
+        profile = SimpleNamespace(user_id=7, active_booking_id=99, taking_work=False, name='Original Worker',
+                                  city='Islamabad', area='G-10', service_id='electrician', experience_years=10,
+                                  moderation='approved')
         values = {'name': 'Updated Worker', 'city': 'Islamabad', 'area': 'G-9', 'service_id': 'electrician', 'experience_years': 10,
                   'user_id': 123, 'active_booking_id': None, 'taking_work': True}
         with patch('app.main.routes.current_account'), patch('app.main.routes.profile_for', return_value=profile), \
@@ -63,6 +65,7 @@ class NearbyProfileTests(unittest.TestCase):
             response = self.client.patch('/api/profile', json=values, headers=self.headers)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(profile.name, 'Updated Worker')
+        self.assertEqual(profile.moderation, 'pending')
         self.assertEqual((profile.user_id, profile.active_booking_id, profile.taking_work), (7, 99, False))
 
     def test_invalid_customer_location_is_not_saved(self):

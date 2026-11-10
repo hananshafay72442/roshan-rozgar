@@ -1,6 +1,7 @@
 import click
 from sqlalchemy import text
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from werkzeug.security import generate_password_hash
 
 from .extensions import db
 from .services.ai import AIServiceError, generate_text
@@ -23,6 +24,26 @@ def register_commands(app):
             db.session.rollback()
             raise click.ClickException("Database initialization failed. Check the database credentials and permissions.") from None
         click.echo("Marketplace database is ready.")
+
+    @app.cli.command("create-admin")
+    @click.option("--email", prompt=True)
+    @click.password_option()
+    def create_admin(email, password):
+        """Create a separate administrator account."""
+        from .models import Account
+        from .services.verification import normalize_email
+
+        email = normalize_email(email)
+        if not email or not 12 <= len(password) <= 128:
+            raise click.ClickException("Use a valid email and a password between 12 and 128 characters.")
+        db.session.add(Account(email=email, password_hash=generate_password_hash(password),
+                               role="admin", verification="none"))
+        try:
+            db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
+            raise click.ClickException("An account with that email already exists.") from None
+        click.echo("Administrator created. Sign in with the email and password.")
 
     @app.cli.command("check-db")
     def check_db():

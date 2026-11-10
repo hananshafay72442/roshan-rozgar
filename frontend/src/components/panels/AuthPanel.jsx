@@ -29,6 +29,7 @@ export default function AuthPanel({ initialMode, initialRole, session, call, onS
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
+  const [contactPhone, setContactPhone] = useState('')
   const [phone, setPhone] = useState('')
   const [code, setCode] = useState('')
   const [challenge, setChallenge] = useState(null)
@@ -55,7 +56,7 @@ export default function AuthPanel({ initialMode, initialRole, session, call, onS
       if (challenge) {
         onSuccess(await call('/auth/verify', { method: 'POST', data: { code } }))
       } else if (usePassword) {
-        onSuccess(await call('/auth/password', { method: 'POST', data: { intent: mode, role, email, password } }))
+        onSuccess(await call('/auth/password', { method: 'POST', data: { intent: mode, role, email, password, contact_phone: contactPhone.trim() } }))
       } else {
         const contact = sms ? { phone } : { email }
         const next = await call('/auth/code', { method: 'POST', data: { intent: mode, role, channel, ...contact } })
@@ -131,6 +132,10 @@ export default function AuthPanel({ initialMode, initialRole, session, call, onS
                 <input type="email" dir="ltr" autoComplete="email" autoCapitalize="none" placeholder="name@example.com" maxLength={254}
                   required value={email} onChange={(event) => setEmail(event.target.value)} />
               </label>
+              {usePassword && mode === 'register' && <label className="form-field">{t('Contact phone (optional)')}
+                <input type="tel" dir="ltr" autoComplete="tel" maxLength={24} value={contactPhone} onChange={event => setContactPhone(event.target.value)} />
+                <span className="hint">{t('Only administrators can see this number.')}</span>
+              </label>}
               {usePassword && <><label className="form-field">{t('Password')}
                 <input type={showPassword ? 'text' : 'password'} dir="ltr" autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
                   minLength={8} maxLength={128} required value={password} onChange={(event) => setPassword(event.target.value)} />

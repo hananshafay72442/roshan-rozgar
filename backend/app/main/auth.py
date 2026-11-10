@@ -113,7 +113,12 @@ def authenticate_password():
             abort(401, description="Email or password is incorrect.")
         return start_session(account)
 
-    account = Account(email=email, password_hash=generate_password_hash(password), role=role, verification="none")
+    raw_phone = data.get("contact_phone", "")
+    contact_phone = normalize_phone(raw_phone)
+    if raw_phone != "" and not contact_phone:
+        abort(400, description="Enter a Pakistani mobile number, like 03001234567.")
+    account = Account(email=email, password_hash=generate_password_hash(password), role=role,
+                      verification="none", contact_phone=contact_phone)
     db.session.add(account)
     try:
         db.session.commit()

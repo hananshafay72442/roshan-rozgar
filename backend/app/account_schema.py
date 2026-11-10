@@ -23,4 +23,9 @@ def upgrade_account_email_schema():
             connection.exec_driver_sql("ALTER TABLE account MODIFY COLUMN phone VARCHAR(16) NULL")
         if "password_hash" not in columns:
             connection.exec_driver_sql("ALTER TABLE account ADD COLUMN password_hash VARCHAR(255) NULL")
+        if "contact_phone" not in columns:
+            connection.exec_driver_sql("ALTER TABLE account ADD COLUMN contact_phone VARCHAR(16) NULL")
+        for table in ("worker_profile", "booking"):
+            if inspector.has_table(table) and not any(c["name"] == "moderation" for c in inspector.get_columns(table)):
+                connection.exec_driver_sql(f"ALTER TABLE {table} ADD COLUMN moderation VARCHAR(8) NOT NULL DEFAULT 'approved'")
         connection.commit()

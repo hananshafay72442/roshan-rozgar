@@ -10,6 +10,7 @@ import CustomerProfilePanel from '../components/panels/CustomerProfilePanel'
 import RequestPanel from '../components/panels/RequestPanel'
 import ReviewsPanel from '../components/panels/ReviewsPanel'
 import WorkspacePanel from '../components/panels/WorkspacePanel'
+import AdminPanel from '../components/panels/AdminPanel'
 import Panel from '../components/panels/Panel'
 import HomePage from '../pages/HomePage'
 import '../styles/panels.css'
@@ -39,20 +40,21 @@ export default function App() {
   const openAuth = useCallback((mode, role, worker) => setPanel({ type: 'auth', mode, role, worker }), [])
   const openProfile = () => setPanel({ type: user?.role === 'worker' ? 'profile' : 'customer-profile', editing: !!user?.profile_complete })
   const openWorkspace = useCallback(() => {
-    setPanel({ type: user?.role === 'worker' && !user.profile_complete ? 'profile' : 'workspace' })
+    setPanel({ type: user?.role === 'admin' ? 'admin' : user?.role === 'worker' && !user.profile_complete ? 'profile' : 'workspace' })
   }, [user])
 
   function requestWorker(worker) {
     if (!user) openAuth('register', 'customer', worker)
     else if (user.role === 'worker') setPanel({ type: 'role', worker })
-    else if (!user.location) openProfile()
+    else if (!user.location) setPanel({ type: 'customer-profile', worker })
     else setPanel({ type: 'request', worker })
   }
 
   function authSuccess(data) {
     setSession(data)
-    if (data.user.role === 'worker' && !data.user.profile_complete) setPanel({ type: 'profile' })
-    else if (data.user.role === 'customer' && !data.user.profile_complete) setPanel({ type: 'customer-profile' })
+    if (data.user.role === 'admin') setPanel({ type: 'admin' })
+    else if (data.user.role === 'worker' && !data.user.profile_complete) setPanel({ type: 'profile' })
+    else if (data.user.role === 'customer' && !data.user.profile_complete) setPanel({ type: 'customer-profile', worker: panel.worker })
     else if (data.user.role === 'customer' && panel.worker) setPanel({ type: 'request', worker: panel.worker })
     else close()
   }
@@ -66,7 +68,11 @@ export default function App() {
     <>
       <a className="skip-link" href="#main">{t('Skip to content')}</a>
       <SiteHeader user={user} openAuth={openAuth} openWorkspace={openWorkspace} />
-      <HomePage key={user?.id || 'guest'} revision={revision} user={user} call={call} onEditProfile={openProfile}
+      {user?.role === 'admin' ? <main id="main" className="container worker-section" tabIndex={-1}>
+        <div id="top" className="worker-intro"><div><h2>{t('Admin review')}</h2>
+          <button type="button" className="button-primary" onClick={openWorkspace}>{t('Open review queue')}</button>
+        </div></div>
+      </main> : <HomePage key={user?.id || 'guest'} revision={revision} user={user} call={call} onEditProfile={openProfile}
         onBrowse={() => user?.role === 'customer' ? openProfile() : openAuth('register', 'customer')}
         onOpenWorkspace={(job) => setPanel({ type: user?.role === 'worker' && !user.profile_complete ? 'profile' : 'workspace', job })} onRequest={requestWorker}
         onReviews={(worker) => setPanel({ type: 'reviews', worker })}
@@ -74,7 +80,7 @@ export default function App() {
           if (!user) openAuth('register', 'worker')
           else if (user.role === 'worker') openWorkspace()
           else setPanel({ type: 'role' })
-        }} />
+        }} />}
       <SiteFooter user={user} openWorkspace={openWorkspace} />
       <ThemeToggle />
       {panel?.type === 'auth' && (session.csrf_token ? <AuthPanel key={`${panel.mode}:${panel.role}`} initialMode={panel.mode} initialRole={panel.role}
@@ -85,7 +91,8 @@ export default function App() {
           </div> : <p role="status">{t('Getting your account ready…')}</p>}
         </Panel>)}
       {panel?.type === 'customer-profile' && <CustomerProfilePanel call={call} onClose={close}
-        onSuccess={data => { setSession(data); refreshCatalog(); close() }} />}
+        onSuccess={data => { setSession(data); refreshCatalog(); if (panel.worker) setPanel({ type: 'request', worker: panel.worker }); else close() }} />}
+      {panel?.type === 'admin' && user?.role === 'admin' && <AdminPanel call={call} onClose={close} onLogout={signedOut} />}
       {panel?.type === 'profile' && <ProfilePanel editing={panel.editing} call={call} voiceEnabled={session.voice_profile} onClose={close} onLogout={signedOut}
         onSuccess={(data) => { setSession(data); refreshCatalog(); setPanel({ type: 'workspace' }) }} />}
       {panel?.type === 'workspace' && user && <WorkspacePanel user={user} initialJob={panel.job} call={call} onEditProfile={openProfile}

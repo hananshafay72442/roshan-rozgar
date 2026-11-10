@@ -13,7 +13,7 @@ from sqlalchemy.engine import make_url
 from app import create_app
 from app.config import LOCAL_DB_HOSTS, Config
 from app.extensions import db
-from app.models import Account, RateBucket
+from app.models import Account, Booking, RateBucket, WorkerProfile
 
 
 def wav_data():
@@ -77,7 +77,7 @@ class MarketplaceTests(unittest.TestCase):
             self.assertEqual(saved.status_code, 200, saved.json)
         return client
 
-    def new_worker(self):
+    def new_worker(self, approve=True):
         worker = self.verified("worker", 1)
         created = self.post(worker, "/profile", {
             "name": "Test Electrician", "city": "Islamabad", "area": "G-10",
@@ -85,7 +85,52 @@ class MarketplaceTests(unittest.TestCase):
         })
         self.assertEqual(created.status_code, 201, created.json)
         result = worker.get("/api/profile").json["profile"]
+        if approve:
+            self.approve(WorkerProfile, result["id"])
         return worker, result["id"]
+
+    def approve(self, model, item_id):
+        with self.app.app_context():
+            db.session.get(model, item_id).moderation = "approved"
+            db.session.commit()
+
+    def test_admin_can_review_profiles_and_requests_and_only_admin_sees_contacts(self):
+        worker, worker_id = self.new_worker(approve=False)
+        customer = self.verified("customer", 2)
+        self.assertEqual(customer.get("/api/workers").json["total"], 0)
+        self.assertEqual(customer.get("/api/admin/review").status_code, 403)
+        self.assertEqual(self.post(customer, "/auth/password", {
+            "intent": "register", "role": "admin", "email": "other@example.com", "password": "test-only-password",
+        }).status_code, 400)
+        result = self.app.test_cli_runner().invoke(args=[
+            "create-admin", "--email", "admin@example.com", "--password", "test-only-password",
+        ])
+        self.assertEqual(result.exit_code, 0, result.output)
+        admin = self.app.test_client()
+        result = self.post(admin, "/auth/password", {
+            "intent": "login", "email": "admin@example.com", "password": "test-only-password",
+        })
+        self.assertEqual(result.json["user"]["role"], "admin")
+        queue = admin.get("/api/admin/review").json
+        self.assertEqual(queue["profiles"][0]["phone"], "+923001000001")
+        decision = {"decision": "approved"}
+        endpoint = f"/api/admin/review/profiles/{worker_id}"
+        self.assertEqual(customer.patch(endpoint, json=decision, headers=self.headers(customer)).status_code, 403)
+        self.assertEqual(admin.patch(endpoint, json=decision, headers=self.headers(admin)).status_code, 200)
+        public_worker = customer.get("/api/workers").json["workers"][0]
+        self.assertNotIn("phone", public_worker)
+        request = self.post(customer, "/jobs", {"worker_id": worker_id, "text": "Please check the wiring."})
+        self.assertEqual(request.status_code, 201, request.json)
+        job = request.json["job"]
+        self.assertEqual(job["moderation"], "pending")
+        self.assertEqual(self.post(worker, f"/jobs/{job['id']}/quote", {"quote_pkr": 900}).status_code, 409)
+        entry = admin.get("/api/admin/review").json["requests"][0]
+        self.assertEqual(entry["phone"], "+923001000002")
+        self.assertEqual(entry["text"], "Please check the wiring.")
+        url = f"/api/admin/review/requests/{job['id']}"
+        self.assertEqual(admin.patch(url, json=decision, headers=self.headers(admin)).status_code, 200)
+        self.assertEqual(admin.patch(url, json=decision, headers=self.headers(admin)).status_code, 409)
+        self.assertEqual(self.post(worker, f"/jobs/{job['id']}/quote", {"quote_pkr": 900}).status_code, 200)
 
     def test_local_code_requires_csrf_is_single_use_and_limits_guesses(self):
         client = self.app.test_client()
@@ -281,6 +326,7 @@ class MarketplaceTests(unittest.TestCase):
             result = self.post(customer, "/jobs", {"worker_id": worker_id, "text": "Switch needs fixing."})
             self.assertEqual(result.status_code, 201, result.json)
             jobs.append(result.json["job"]["id"])
+            self.approve(Booking, jobs[-1])
         for job in jobs:
             self.assertEqual(self.post(worker, f"/jobs/{job}/quote", {"quote_pkr": 1250}).status_code, 200)
         self.assertEqual(self.post(customers[0], f"/jobs/{jobs[0]}/accept", {"quote_pkr": 1100}).status_code, 409)
@@ -318,6 +364,7 @@ class MarketplaceTests(unittest.TestCase):
         }, headers=self.headers(customer))
         self.assertEqual(response.status_code, 201, response.json)
         job = response.json["job"]["id"]
+        self.approve(Booking, job)
         detail = worker.get(f"/api/jobs/{job}").json
         url = detail["messages"][0]["audio_url"]
         with worker.get(url) as playback:

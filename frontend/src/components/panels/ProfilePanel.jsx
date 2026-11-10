@@ -147,7 +147,7 @@ export default function ProfilePanel({ editing = false, voiceEnabled, call, onSu
           english={`${profile.name}, ${trade?.name}, ${profile.area} ${profile.city}, ${profile.experience_years} years of experience.`} label="Listen to my profile" />
         <div className="panel-actions">
           <button type="button" className="button-secondary" disabled={busy} onClick={() => setStep(0)}>{t('Change details')}</button>
-          <RippleButton className="button-primary" disabled={busy} onClick={publish}>{t(busy ? 'Please wait…' : editing ? 'Save changes' : 'Publish profile')}</RippleButton>
+          <RippleButton className="button-primary" disabled={busy} onClick={publish}>{t(busy ? 'Please wait…' : editing ? 'Save changes' : 'Submit for review')}</RippleButton>
         </div>
       </div>}
       {error && <p className="form-error" role="alert">{t(error)}</p>}

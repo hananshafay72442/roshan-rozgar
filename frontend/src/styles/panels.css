@@ -146,3 +146,6 @@ body:has(dialog[open]) { overflow: hidden; }
 
 :root[dir='rtl'] :is(.panel-heading h2, .form-title, .job-head h3) { line-height: 1.65; letter-spacing: normal; }
 :root[dir='rtl'] :is(.panel button, .form-field, .panel-heading .eyebrow) { line-height: 1.85; }
+
+.admin-review-item { display: grid; gap: 6px; padding: 14px; border: 1px solid var(--line); border-radius: 10px; overflow-wrap: anywhere; }
+.admin-review-item audio { max-width: 100%; }
