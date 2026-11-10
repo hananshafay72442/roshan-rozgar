@@ -84,8 +84,6 @@ class Config:
             raise ValueError("Set all three TWILIO_* values to enable SMS verification.")
         self.RESEND_API_KEY = os.getenv("RESEND_API_KEY", "").strip()
         self.RESEND_FROM_EMAIL = os.getenv("RESEND_FROM_EMAIL", "").strip()
-        if bool(self.RESEND_API_KEY) != bool(self.RESEND_FROM_EMAIL):
-            raise ValueError("Set RESEND_API_KEY and RESEND_FROM_EMAIL together to enable email verification.")
         # Reserved for the future account/admin flow; no administrator is created at startup.
         self.ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "").strip()
         self.ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "")

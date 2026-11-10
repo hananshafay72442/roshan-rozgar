@@ -56,7 +56,9 @@ export default function WorkspacePanel({ user, initialJob, call, onClose, onLogo
   }
 
   const activeJob = jobs?.some(({ id }) => id === selected) ? selected : jobs?.[0]?.id
-  const verifiedLabel = user.verification === 'sms' ? 'Phone verified' : user.verification === 'email' ? 'Email verified' : 'Demo verification'
+  const verifiedLabel = {
+    sms: 'Phone verified', email: 'Email verified', demo: 'Demo verification',
+  }[user.verification]
 
   return (
     <Panel title={t(worker ? 'Worker workspace.' : 'My requests.')} kicker={worker && user.profile_name ? user.profile_name : t(worker ? 'Your trade account' : 'Your customer account')}
@@ -67,8 +69,8 @@ export default function WorkspacePanel({ user, initialJob, call, onClose, onLogo
           <span>{t('Accept new jobs')}</span>
         </label>}
         {worker && profile?.busy && <span className="job-status is-confirmed">{t('Currently booked')}</span>}
-        <span className="workspace-account"><Icon name={user.verification === 'demo' ? 'phone' : 'shield'} size={16} />
-          {t(verifiedLabel)}</span>
+        {verifiedLabel && <span className="workspace-account"><Icon name={user.verification === 'demo' ? 'phone' : 'shield'} size={16} />
+          {t(verifiedLabel)}</span>}
         <button type="button" className="text-button" onClick={signOut} disabled={busy}>{t('Sign out')}</button>
       </div>
       {actionError && <p className="form-error" role="alert">{t(actionError)}</p>}

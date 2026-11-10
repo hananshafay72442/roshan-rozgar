@@ -24,7 +24,9 @@ export default function AuthPanel({ initialMode, initialRole, session, call, onS
   const [mode, setMode] = useState(initialMode)
   const [role, setRole] = useState(initialRole || '')
   const [channel, setChannel] = useState('email')
+  const [emailCode, setEmailCode] = useState(false)
   const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [phone, setPhone] = useState('')
   const [code, setCode] = useState('')
   const [challenge, setChallenge] = useState(null)
@@ -33,8 +35,10 @@ export default function AuthPanel({ initialMode, initialRole, session, call, onS
   const chooseRole = mode === 'register' && !role
   const worker = role === 'worker'
   const sms = channel === 'sms'
+  const usePassword = !sms && !emailCode
+  const canUseEmailCode = ['email', 'demo'].includes(session.verification_modes?.email)
   const verification = session.verification_modes?.[channel] ?? (sms ? session.verification_mode : 'unavailable')
-  const unavailable = verification === 'unavailable'
+  const unavailable = !usePassword && verification === 'unavailable'
   const demo = verification === 'demo'
 
   async function submit(event) {
@@ -44,6 +48,8 @@ export default function AuthPanel({ initialMode, initialRole, session, call, onS
     try {
       if (challenge) {
         onSuccess(await call('/auth/verify', { method: 'POST', data: { code } }))
+      } else if (usePassword) {
+        onSuccess(await call('/auth/password', { method: 'POST', data: { intent: mode, role, email, password } }))
       } else {
         const contact = sms ? { phone } : { email }
         const next = await call('/auth/code', { method: 'POST', data: { intent: mode, role, channel, ...contact } })
@@ -59,6 +65,9 @@ export default function AuthPanel({ initialMode, initialRole, session, call, onS
     setCode('')
     setError('')
   }
+
+  const passwordAction = mode === 'register' ? 'Create an account' : 'Sign in'
+  const codeAction = demo ? 'Get demo code' : sms ? 'Send SMS code' : 'Send email code'
 
   return (
     <Panel title={t(challenge ? (sms ? 'Verify your phone' : 'Verify your email') : mode === 'login' ? 'Welcome back.' : 'Get started')}
@@ -83,9 +92,11 @@ export default function AuthPanel({ initialMode, initialRole, session, call, onS
           <RippleButton type="submit" className="button-primary" disabled={busy}>{t(busy ? 'Verifying…' : 'Verify and continue')}</RippleButton>
           <button type="button" className="text-button align-start" disabled={busy} onClick={resetChallenge}>{t('Request a new code or change contact details')}</button>
         </> : <>
-          <div className="auth-methods" role="group" aria-label={t('Verification method')}>
+          <div className="auth-methods" role="group" aria-label={t('Sign-in method')}>
             {methods.map(({ id, title, icon }) => <button key={id} type="button" className="auth-method"
-              aria-pressed={channel === id} disabled={busy} onClick={() => { setChannel(id); setError('') }}>
+              aria-pressed={channel === id} disabled={busy} onClick={() => {
+                if (channel !== id) { setChannel(id); setEmailCode(false); setPassword(''); setError('') }
+              }}>
               <Icon name={icon} size={19} />{t(title)}
             </button>)}
           </div>
@@ -109,17 +120,25 @@ export default function AuthPanel({ initialMode, initialRole, session, call, onS
                 <button type="button" className="text-button" onClick={() => setPhone('03000000099')}>{t('Demo customer')}</button>
               </div>}
             </> : <>
-              <p className="panel-deck">{t(demo ? 'Use your email address to get a local demo code.' : 'Use your email address to get a one-time code.')}</p>
-              {worker && <Listen text="اپنا ای میل پتہ لکھیں۔ آپ کو چھ ہندسوں کا کوڈ ملے گا۔" english="Enter your email address to get a six-digit code." />}
+              {!usePassword && <p className="panel-deck">{t('Use your email address to get a one-time code.')}</p>}
               <label className="form-field">{t('Email address')}
                 <input type="email" dir="ltr" autoComplete="email" autoCapitalize="none" placeholder="name@example.com" maxLength={254}
                   required value={email} onChange={(event) => setEmail(event.target.value)} />
               </label>
+              {usePassword && <label className="form-field">{t('Password')}
+                <input type="password" dir="ltr" autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
+                  minLength={8} maxLength={128} required value={password} onChange={(event) => setPassword(event.target.value)} />
+                {mode === 'register' && <span className="hint">{t('Use at least 8 characters.')}</span>}
+              </label>}
             </>}
             <RippleButton type="submit" className="button-primary" disabled={busy || !session.csrf_token}>
-              {t(busy ? 'Requesting code…' : demo ? 'Get demo code' : sms ? 'Send SMS code' : 'Send email code')}
+              {t(usePassword ? (busy ? 'Please wait…' : passwordAction) : (busy ? 'Requesting code…' : codeAction))}
             </RippleButton>
           </>}
+          {!sms && mode === 'login' && (canUseEmailCode || emailCode) && <button type="button" className="text-button align-start" disabled={busy}
+            onClick={() => { setEmailCode(!emailCode); setPassword(''); setError('') }}>
+            {t(emailCode ? 'Use my password' : 'Use an email code')}
+          </button>}
           {mode === 'register' && <button type="button" className="text-button align-start" disabled={busy} onClick={() => setRole('')}>{t('Choose a different account type')}</button>}
         </>}
         {error && <p className="form-error" role="alert">{t(error)}</p>}
@@ -129,6 +148,8 @@ export default function AuthPanel({ initialMode, initialRole, session, call, onS
         <button className="text-button" type="button" disabled={busy} onClick={() => {
           setMode(mode === 'login' ? 'register' : 'login')
           setRole('')
+          setEmailCode(false)
+          setPassword('')
           setError('')
         }}>{t(mode === 'login' ? 'Create an account' : 'Sign in')}</button>
       </div>}

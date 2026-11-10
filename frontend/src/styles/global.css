@@ -66,7 +66,7 @@
 }
 
 *, *::before, *::after { box-sizing: border-box; }
-html { scroll-behavior: smooth; scroll-padding-top: 105px; }
+html { scroll-behavior: smooth; scroll-padding-top: 105px; scrollbar-gutter: stable; }
 body { margin: 0; min-width: 300px; overflow-x: clip; }
 button, input, select, textarea { font: inherit; }
 button { cursor: pointer; }

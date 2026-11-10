@@ -11,9 +11,12 @@ body:has(dialog[open]) { overflow: hidden; }
   box-shadow: 0 25px 100px rgb(15 12 10 / .32);
 }
 .panel-wide { width: min(100% - 28px, 960px); }
+.panel { overscroll-behavior: contain; }
 .panel::backdrop { background: rgb(21 16 14 / .6); backdrop-filter: blur(3px); }
 .panel-content { padding: clamp(17px, 4vw, 29px); }
 .panel-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 16px; }
+.panel-heading > div { min-width: 0; overflow-wrap: anywhere; }
+.panel-heading > .icon-button { flex: none; }
 .panel-heading h2 { margin-top: 5px; font-size: clamp(1.85rem, 5vw, 2.9rem); line-height: 1.05; font-weight: 710; letter-spacing: -.066em; }
 .panel-deck { color: var(--muted); font-size: .94rem; }
 .panel-heading + .panel-deck { margin-bottom: 14px; }
