@@ -113,6 +113,7 @@ class MarketplaceTests(unittest.TestCase):
         self.assertEqual(result.json["user"]["role"], "admin")
         queue = admin.get("/api/admin/review").json
         self.assertEqual(queue["profiles"][0]["phone"], "+923001000001")
+        self.assertEqual(queue["requests"], [])
         decision = {"decision": "approved"}
         endpoint = f"/api/admin/review/profiles/{worker_id}"
         self.assertEqual(customer.patch(endpoint, json=decision, headers=self.headers(customer)).status_code, 403)
@@ -131,6 +132,9 @@ class MarketplaceTests(unittest.TestCase):
         self.assertEqual(admin.patch(url, json=decision, headers=self.headers(admin)).status_code, 200)
         self.assertEqual(admin.patch(url, json=decision, headers=self.headers(admin)).status_code, 409)
         self.assertEqual(self.post(worker, f"/jobs/{job['id']}/quote", {"quote_pkr": 900}).status_code, 200)
+        self.assertEqual(self.post(worker, f"/jobs/{job['id']}/messages", {"text": "A follow-up."}).status_code, 201)
+        entries = admin.get("/api/admin/review?status=approved").json["requests"]
+        self.assertEqual([(item["id"], item["text"]) for item in entries], [(job["id"], "Please check the wiring.")])
 
     def test_local_code_requires_csrf_is_single_use_and_limits_guesses(self):
         client = self.app.test_client()
