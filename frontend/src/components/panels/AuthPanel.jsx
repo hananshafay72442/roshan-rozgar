@@ -10,6 +10,11 @@ const roles = [
   { id: 'worker', title: 'I’m a skilled worker', icon: 'tool' },
 ]
 
+const methods = [
+  { id: 'email', title: 'Email', icon: 'mail' },
+  { id: 'sms', title: 'Phone (SMS)', icon: 'phone' },
+]
+
 function phoneDigits(text) {
   return text.replace(/[۰-۹٠-٩]/g, (digit) => String(digit.charCodeAt(0) & 15)).replace(/[^+0-9]/g, '')
 }
@@ -18,6 +23,8 @@ export default function AuthPanel({ initialMode, initialRole, session, call, onS
   const { t } = useLanguage()
   const [mode, setMode] = useState(initialMode)
   const [role, setRole] = useState(initialRole || '')
+  const [channel, setChannel] = useState('email')
+  const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
   const [code, setCode] = useState('')
   const [challenge, setChallenge] = useState(null)
@@ -25,8 +32,10 @@ export default function AuthPanel({ initialMode, initialRole, session, call, onS
   const [error, setError] = useState('')
   const chooseRole = mode === 'register' && !role
   const worker = role === 'worker'
-  const unavailable = session.verification_mode === 'unavailable' && !challenge
-  const demo = session.verification_mode === 'demo' || session.demo_auth
+  const sms = channel === 'sms'
+  const verification = session.verification_modes?.[channel] ?? (sms ? session.verification_mode : 'unavailable')
+  const unavailable = verification === 'unavailable'
+  const demo = verification === 'demo'
 
   async function submit(event) {
     event.preventDefault()
@@ -36,7 +45,8 @@ export default function AuthPanel({ initialMode, initialRole, session, call, onS
       if (challenge) {
         onSuccess(await call('/auth/verify', { method: 'POST', data: { code } }))
       } else {
-        const next = await call('/auth/code', { method: 'POST', data: { intent: mode, role, phone } })
+        const contact = sms ? { phone } : { email }
+        const next = await call('/auth/code', { method: 'POST', data: { intent: mode, role, channel, ...contact } })
         setChallenge(next)
       }
     } catch (failure) {
@@ -51,12 +61,9 @@ export default function AuthPanel({ initialMode, initialRole, session, call, onS
   }
 
   return (
-    <Panel title={t(challenge ? 'Verify your phone' : mode === 'login' ? 'Welcome back.' : 'Get started')}
+    <Panel title={t(challenge ? (sms ? 'Verify your phone' : 'Verify your email') : mode === 'login' ? 'Welcome back.' : 'Get started')}
       kicker={t('Your Roshan Rozgar account')} onClose={onClose}>
-      {unavailable ? <div className="panel-form">
-        <p className="form-error" role="status">{t('SMS sign-in is unavailable right now. Please try again later.')}</p>
-        <button type="button" className="button-secondary" onClick={onRetry}>{t('Try again')}</button>
-      </div> : chooseRole ? <>
+      {chooseRole ? <>
         <p className="panel-deck">{t('Choose how you’ll use Roshan Rozgar.')}</p>
         <div className="role-options">
           {roles.map(({ id, title, icon }) => <button key={id} className="role-option" type="button" onClick={() => setRole(id)}>
@@ -66,36 +73,58 @@ export default function AuthPanel({ initialMode, initialRole, session, call, onS
         </div>
       </> : <form className="panel-form" onSubmit={submit}>
         {challenge ? <>
-          <p className="panel-deck">{challenge.demo_code
+          <p className="panel-deck auth-code-deck">{challenge.demo_code
             ? t('Verify with the local demo code below.')
-            : t('Enter the six-digit code sent to {phone}.', { phone })}</p>
+            : t('Enter the six-digit code sent to {address}.', { address: `\u2066${sms ? phone : email.trim()}\u2069` })}</p>
           <label className="form-field">{t('Verification code')} <input type="text" dir="ltr" inputMode="numeric" autoComplete="one-time-code"
             pattern="[0-9]{6}" maxLength={6} required value={code} onChange={(event) => setCode(phoneDigits(event.target.value).slice(0, 6))} /></label>
           {challenge.demo_code && <div className="demo-banner"><span><strong>{t('Demo code')}</strong> <code dir="ltr">{challenge.demo_code}</code></span>
             <button type="button" className="text-button" onClick={() => setCode(challenge.demo_code)}>{t('Use demo code')}</button></div>}
           <RippleButton type="submit" className="button-primary" disabled={busy}>{t(busy ? 'Verifying…' : 'Verify and continue')}</RippleButton>
-          <button type="button" className="text-button align-start" disabled={busy} onClick={resetChallenge}>{t('Request a new code or change number')}</button>
+          <button type="button" className="text-button align-start" disabled={busy} onClick={resetChallenge}>{t('Request a new code or change contact details')}</button>
         </> : <>
-          <p className="panel-deck">{t(demo ? 'Use your Pakistani mobile number to get a local demo code.' : 'Use your Pakistani mobile number. You’ll get a one-time code.')}</p>
-          {worker && <Listen text="اپنا موبائل نمبر بتائیں۔ آپ کو چھ ہندسوں کا کوڈ ملے گا۔" english="Enter your mobile number to get a six digit code." />}
-          <label className="form-field">{t('Mobile number')}
-            <input type="tel" dir="ltr" inputMode="tel" autoComplete="tel" placeholder="0300 1234567" maxLength={22}
-              required value={phone} onChange={(event) => setPhone(event.target.value)} />
-          </label>
-          {worker && <Dictate onText={(text) => { const number = phoneDigits(text); if (number) setPhone(number) }} label="Say my number" />}
-          {demo && session.demo_data && mode === 'login' && <div className="demo-banner demo-accounts">
-            <span>{t('Try a sample account')}</span>
-            <button type="button" className="text-button" onClick={() => setPhone('03000000001')}>{t('Demo worker')}</button>
-            <button type="button" className="text-button" onClick={() => setPhone('03000000099')}>{t('Demo customer')}</button>
-          </div>}
-          <RippleButton type="submit" className="button-primary" disabled={busy || !session.csrf_token}>
-            {t(busy ? 'Requesting code…' : demo ? 'Get demo code' : 'Send SMS code')}
-          </RippleButton>
+          <div className="auth-methods" role="group" aria-label={t('Verification method')}>
+            {methods.map(({ id, title, icon }) => <button key={id} type="button" className="auth-method"
+              aria-pressed={channel === id} disabled={busy} onClick={() => { setChannel(id); setError('') }}>
+              <Icon name={icon} size={19} />{t(title)}
+            </button>)}
+          </div>
+          {unavailable ? <>
+            <p className="form-error" role="status">{t(sms
+              ? 'SMS sign-in is unavailable right now. Please try again later.'
+              : 'Email sign-in is unavailable right now. Please try again later.')}</p>
+            <button type="button" className="button-secondary" onClick={onRetry}>{t('Try again')}</button>
+          </> : <>
+            {sms ? <>
+              <p className="panel-deck">{t(demo ? 'Use your Pakistani mobile number to get a local demo code.' : 'Use your Pakistani mobile number. You’ll get a one-time code.')}</p>
+              {worker && <Listen text="اپنا موبائل نمبر بتائیں۔ آپ کو چھ ہندسوں کا کوڈ ملے گا۔" english="Enter your mobile number to get a six-digit code." />}
+              <label className="form-field">{t('Mobile number')}
+                <input type="tel" dir="ltr" inputMode="tel" autoComplete="tel" placeholder="0300 1234567" maxLength={22}
+                  required value={phone} onChange={(event) => setPhone(event.target.value)} />
+              </label>
+              {worker && <Dictate onText={(text) => { const number = phoneDigits(text); if (number) setPhone(number) }} label="Say my number" />}
+              {demo && session.demo_data && mode === 'login' && <div className="demo-banner demo-accounts">
+                <span>{t('Try a sample account')}</span>
+                <button type="button" className="text-button" onClick={() => setPhone('03000000001')}>{t('Demo worker')}</button>
+                <button type="button" className="text-button" onClick={() => setPhone('03000000099')}>{t('Demo customer')}</button>
+              </div>}
+            </> : <>
+              <p className="panel-deck">{t(demo ? 'Use your email address to get a local demo code.' : 'Use your email address to get a one-time code.')}</p>
+              {worker && <Listen text="اپنا ای میل پتہ لکھیں۔ آپ کو چھ ہندسوں کا کوڈ ملے گا۔" english="Enter your email address to get a six-digit code." />}
+              <label className="form-field">{t('Email address')}
+                <input type="email" dir="ltr" autoComplete="email" autoCapitalize="none" placeholder="name@example.com" maxLength={254}
+                  required value={email} onChange={(event) => setEmail(event.target.value)} />
+              </label>
+            </>}
+            <RippleButton type="submit" className="button-primary" disabled={busy || !session.csrf_token}>
+              {t(busy ? 'Requesting code…' : demo ? 'Get demo code' : sms ? 'Send SMS code' : 'Send email code')}
+            </RippleButton>
+          </>}
           {mode === 'register' && <button type="button" className="text-button align-start" disabled={busy} onClick={() => setRole('')}>{t('Choose a different account type')}</button>}
         </>}
         {error && <p className="form-error" role="alert">{t(error)}</p>}
       </form>}
-      {!unavailable && !challenge && <div className="panel-bottom">
+      {!challenge && <div className="panel-bottom">
         <span>{t(mode === 'login' ? 'New here?' : 'Already registered?')}</span>
         <button className="text-button" type="button" disabled={busy} onClick={() => {
           setMode(mode === 'login' ? 'register' : 'login')

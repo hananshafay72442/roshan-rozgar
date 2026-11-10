@@ -1,0 +1,21 @@
+services:
+  db:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: ${DB_NAME:?Set DB_NAME in backend/.env}
+      MYSQL_USER: ${DB_USER:?Set DB_USER in backend/.env}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in backend/.env}
+      MYSQL_RANDOM_ROOT_PASSWORD: "yes"
+    ports:
+      - "127.0.0.1:${DB_PORT:-3306}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "--host=127.0.0.1", "--silent"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 20s
+
+volumes:
+  mysql_data:

@@ -5,7 +5,6 @@ from tempfile import NamedTemporaryFile
 
 from flask import Flask, abort, send_from_directory
 from dotenv import load_dotenv
-from sqlalchemy import event
 from werkzeug.exceptions import HTTPException
 
 from .extensions import db, migrate
@@ -27,10 +26,6 @@ def local_secret(instance_path):
     return target.read_text().strip()
 
 
-def enable_foreign_keys(connection, _):
-    connection.execute("PRAGMA foreign_keys = ON")
-
-
 def create_app(config_class=None):
     if config_class is None:
         load_dotenv(Path(__file__).resolve().parents[1] / ".env")
@@ -47,18 +42,6 @@ def create_app(config_class=None):
 
     from .main import main_bp
     app.register_blueprint(main_bp)
-
-    if not app.config["DB_HOST"]:
-        from .services.marketplace import seed_catalog
-
-        with app.app_context():
-            event.listen(db.engine, "connect", enable_foreign_keys)
-            db.create_all()
-            if app.config["SEED_SAMPLE_DATA"]:
-                seed_catalog()
-            db.session.remove()
-            if db.engine.url.database not in (None, "", ":memory:"):
-                db.engine.dispose()
 
     from .commands import register_commands
     register_commands(app)

@@ -1,4 +1,4 @@
-"""Phone verification transports and database-backed request limits."""
+"""Verification code delivery and database-backed request limits."""
 
 import hashlib
 import hmac
@@ -6,9 +6,10 @@ import re
 import time
 
 import httpx
+from email_validator import EmailNotValidError, validate_email
 from flask import abort, current_app
 from sqlalchemy import delete, update
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.dialects.mysql import insert
 
 from ..extensions import db
 from ..models import RateBucket
@@ -27,6 +28,16 @@ def normalize_phone(value):
     return value if re.fullmatch(r"\+923[0-9]{9}", value) else None
 
 
+def normalize_email(value):
+    if not isinstance(value, str) or len(value.strip()) > 254:
+        return None
+    try:
+        email = validate_email(value.strip(), check_deliverability=False, allow_smtputf8=False)
+    except EmailNotValidError:
+        return None
+    return email.ascii_email.lower()
+
+
 def digest(*values):
     return hmac.digest(current_app.secret_key.encode(), "|".join(values).encode(), "sha256").hex()
 
@@ -34,34 +45,54 @@ def digest(*values):
 def reserve_quota(scope, value, limit, seconds):
     window = int(time.time()) // seconds * seconds
     key = f"{scope}:{hashlib.sha256(value.encode()).hexdigest()}"
+    # Claim the bucket by primary key before incrementing it. Starting with an
+    # update to a missing row can deadlock concurrent first requests in InnoDB.
+    bucket = insert(RateBucket).values(key=key, window=window, count=0)
+    db.session.execute(bucket.on_duplicate_key_update(count=RateBucket.count))
     increment = update(RateBucket).where(
         RateBucket.key == key, RateBucket.window == window, RateBucket.count < limit,
     ).values(count=RateBucket.count + 1)
-    if db.session.execute(increment).rowcount:
-        db.session.commit()
-        return
-
-    try:
-        db.session.add(RateBucket(key=key, window=window, count=1))
-        db.session.execute(delete(RateBucket).where(RateBucket.key == key, RateBucket.window < window))
-        db.session.commit()
-    except IntegrityError:
-        db.session.rollback()
-        if db.session.execute(increment).rowcount:
-            db.session.commit()
-            return
+    if not db.session.execute(increment).rowcount:
         db.session.rollback()
         abort(429, description="Too many attempts. Wait a little and try again.")
+    db.session.execute(delete(RateBucket).where(RateBucket.key == key, RateBucket.window < window))
+    db.session.commit()
 
 
 def twilio_available():
     return bool(current_app.config["TWILIO_VERIFY_SERVICE_SID"])
 
 
-def verification_mode():
-    if twilio_available():
-        return "sms"
+def verification_mode(channel="sms"):
+    configured = (
+        twilio_available() if channel == "sms"
+        else current_app.config["RESEND_API_KEY"] and current_app.config["RESEND_FROM_EMAIL"]
+    )
+    if configured:
+        return channel
     return "demo" if current_app.config["DEMO_VERIFICATION"] else "unavailable"
+
+
+def send_email(email, code, token, expires_in):
+    config = current_app.config
+    minutes = expires_in // 60
+    try:
+        response = httpx.post(
+            "https://api.resend.com/emails",
+            headers={
+                "Authorization": f'Bearer {config["RESEND_API_KEY"]}',
+                "Idempotency-Key": token,
+            },
+            json={
+                "from": config["RESEND_FROM_EMAIL"], "to": [email],
+                "subject": "Your Roshan Rozgar verification code",
+                "text": f"Your Roshan Rozgar code is {code}. It expires in {minutes} minutes.",
+            },
+            timeout=8,
+        )
+        response.raise_for_status()
+    except httpx.HTTPError:
+        abort(503, description="We couldn’t send an email code. Please try again.")
 
 
 def twilio_connection():

@@ -14,15 +14,21 @@ from app.services.ai import AIServiceError, generate_text
 
 
 def config_for(**values):
-    with patch.dict(os.environ, values, clear=True):
+    defaults = {"DB_HOST": "127.0.0.1", "DB_USER": "test-user", "DB_PASSWORD": "test-password", "DB_SSL": "0"}
+    with patch.dict(os.environ, defaults | values, clear=True):
         return Config()
 
 
 class ConfigurationTests(unittest.TestCase):
-    def test_local_sqlite_accepts_no_database_credentials(self):
-        config = config_for(DB_HOST="", DB_CA_PATH="missing.pem")
-        self.assertEqual(config.SQLALCHEMY_DATABASE_URI, "sqlite:///roshan_rozgar.db")
-        self.assertNotIn("connect_args", config.SQLALCHEMY_ENGINE_OPTIONS)
+    def test_local_mysql_uses_port_3306_and_requires_credentials(self):
+        for missing in ("DB_HOST", "DB_NAME", "DB_USER", "DB_PASSWORD"):
+            with self.subTest(missing=missing), self.assertRaisesRegex(ValueError, "for MySQL"):
+                config_for(**{missing: ""})
+        config = config_for(DB_CA_PATH="missing.pem")
+        self.assertEqual(config.SQLALCHEMY_DATABASE_URI.drivername, "mysql+pymysql")
+        self.assertEqual(config.SQLALCHEMY_DATABASE_URI.port, 3306)
+        self.assertEqual(config.SQLALCHEMY_DATABASE_URI.query["charset"], "utf8mb4")
+        self.assertNotIn("ssl_ca", config.SQLALCHEMY_ENGINE_OPTIONS["connect_args"])
         self.assertFalse(config.SESSION_COOKIE_SECURE)
 
     def test_tidb_preserves_special_characters_in_credentials_and_verifies_tls(self):
@@ -45,11 +51,11 @@ class ConfigurationTests(unittest.TestCase):
         self.assertEqual(context.verify_mode, ssl.CERT_REQUIRED)
 
     def test_blank_ca_uses_public_ca_bundle(self):
-        config = config_for(DB_HOST="example.tidbcloud.com", DB_USER="example.root")
+        config = config_for(DB_HOST="example.tidbcloud.com", DB_USER="example.root", DB_SSL="1")
         self.assertEqual(config.SQLALCHEMY_ENGINE_OPTIONS["connect_args"]["ssl_ca"], certifi.where())
 
     def test_bad_tidb_configuration_fails_without_leaking_password(self):
-        base = {"DB_HOST": "example.tidbcloud.com", "DB_USER": "example.root", "DB_PASSWORD": "test-secret"}
+        base = {"DB_HOST": "example.tidbcloud.com", "DB_USER": "example.root", "DB_PASSWORD": "test-secret", "DB_SSL": "1"}
         for change in [
             {"DB_NAME": "roshanRozgar;"}, {"DB_PORT": "not-a-port"},
             {"DB_PORT": "65536"}, {"DB_CA_PATH": "missing.pem"}, {"DB_SSL": "0"},
@@ -59,40 +65,27 @@ class ConfigurationTests(unittest.TestCase):
             self.assertNotIn("test-secret", str(error.exception))
 
     def test_production_requires_shared_secret_and_explicit_database(self):
-        for values in [{"APP_ENV": "production"}, {"APP_ENV": "production", "SECRET_KEY": "example"}]:
+        for values in [{"APP_ENV": "production"}, {"APP_ENV": "production", "SECRET_KEY": "example", "DB_HOST": ""}]:
             with self.subTest(values=values), self.assertRaises(ValueError):
                 config_for(**values)
-        config = config_for(APP_ENV="production", SECRET_KEY="example", DB_HOST="example.tidbcloud.com", DB_USER="example.root")
+        config = config_for(APP_ENV="production", SECRET_KEY="example")
         self.assertTrue(config.SESSION_COOKIE_SECURE)
+
+    def test_demo_verification_is_opt_in_and_local_only(self):
+        self.assertFalse(config_for().DEMO_VERIFICATION)
+        self.assertTrue(config_for(DEMO_VERIFICATION="1").DEMO_VERIFICATION)
+        for values in [{"APP_ENV": "production", "SECRET_KEY": "example"}, {"DB_HOST": "remote.example.com"}]:
+            with self.subTest(values=values), self.assertRaisesRegex(ValueError, "local MySQL"):
+                config_for(DEMO_VERIFICATION="1", **values)
 
     def test_configuration_is_read_again_for_each_app(self):
         first = config_for(GEMINI_MODEL="gemini-3.5-flash-lite")
         second = config_for(GEMINI_MODEL="gemini-3.8-flash")
         self.assertNotEqual(first.GEMINI_MODEL, second.GEMINI_MODEL)
 
-    def test_seed_switch_changes_catalog_without_disabling_services(self):
-        for flag, expected_count in [("0", 0), ("1", 12)]:
-            with self.subTest(flag=flag):
-                config = config_for(SEED_SAMPLE_DATA=flag)
-                config.SQLALCHEMY_DATABASE_URI = "sqlite://"
-                app = create_app(config)
-                client = app.test_client()
-                self.assertEqual(client.get("/api/workers").json["total"], expected_count)
-                self.assertEqual(len(client.get("/api/services").json["services"]), 6)
-                self.assertEqual(client.get("/api/health").status_code, 200)
-
-    def test_database_check_runs_a_real_sqlite_query(self):
-        config = config_for()
-        config.SQLALCHEMY_DATABASE_URI = "sqlite://"
-        result = create_app(config).test_cli_runner().invoke(args=["check-db"])
-        self.assertEqual(result.exit_code, 0, result.output)
-        self.assertIn("succeeded", result.output)
-
-
 class GeminiTests(unittest.TestCase):
     def setUp(self):
         self.config = config_for(GEMINI_API_KEY="test-key-never-public", GEMINI_MODEL="gemini-3.5-flash-lite")
-        self.config.SQLALCHEMY_DATABASE_URI = "sqlite://"
         self.app = create_app(self.config)
 
     def test_uses_configured_key_model_and_returns_text(self):

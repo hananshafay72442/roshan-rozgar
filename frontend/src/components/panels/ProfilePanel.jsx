@@ -135,7 +135,7 @@ export default function ProfilePanel({ voiceEnabled, call, onSuccess, onClose, o
         </div>
       </div>}
       {catalog && step === steps.length && <div className="panel-form">
-        <p className="panel-deck">{t('Check the details customers will see. Your mobile number stays private.')}</p>
+        <p className="panel-deck">{t('Check the details customers will see. Your sign-in details stay private.')}</p>
         <dl className="profile-preview">
           <div><dt>{t('Name')}</dt><dd dir="auto">{profile.name}</dd></div>
           <div><dt>{t('Trade')}</dt><dd>{trade && t(trade.name)}</dd></div>
